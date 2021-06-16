@@ -1,14 +1,6 @@
-import shutil
-from urllib.parse import urlparse
-
-import cv2
-import layoutparser as lp
-import pytesseract
 import requests
 
-OCR_AGENT = lp.ocr.TesseractAgent(languages='eng')
-
-pytesseract.pytesseract.tesseract_cmd = '/usr/local/bin/tesseract' # todo: configurable?
+from parse_lc_iiif_urls import full_text
 
 def build_url(subject):
     subject = subject.replace(' ', '+')
@@ -30,30 +22,10 @@ def filter_results(response):
     ]
 
 
-def file_ext_from_url(image_url):
-    return urlparse(image_url).path.split('.')[-1].upper()
-
-
-def write_image(image_url, tmpfilename):
-    response = requests.get(image_url, stream=True)
-    with open(tmpfilename, 'wb') as f:
-        response.raw.decode_content = True
-        shutil.copyfileobj(response.raw, f)
-
-
-def parse_text(result):
-    image_urls = result['image_url']    # type `list`
-    for image_url in image_urls:
-        tmpfilename = f'tmp.{file_ext_from_url(image_url)}'
-        write_image(image_url, tmpfilename)
-        image = cv2.imread(tmpfilename)
-        ocr_response = OCR_AGENT.detect(image, return_response=True)
-        import pdb; pdb.set_trace()
-
 
 if __name__ == '__main__':
     url = build_url('african americans')
     response = requests.get(url).json()
     results = filter_results(response)
     for result in results:
-        parse_text(result)
+        full_text(result)
