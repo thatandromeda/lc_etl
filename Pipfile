@@ -1,0 +1,16 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+requests = "*"
+layoutparser = "*"
+pytesseract = "*"
+opencv-python = "==4.5.1.48"
+detectron2 = {git = "https://github.com/facebookresearch/detectron2.git"}
+
+[requires]
+python_version = "3.8"
