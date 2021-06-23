@@ -1,3 +1,4 @@
+import logging
 from time import sleep
 from urllib.parse import urlparse
 
@@ -5,7 +6,16 @@ import requests
 
 from lc_text_fetcher import Fetcher, UnknownIdentifier
 
+logging.basicConfig(filename='bad_results.log')
+
 PAGE_LENGTH = 100
+
+# Get around intermittent 500s or whatever.
+retry = requests.packages.urllib3.util.retry.Retry()
+adapter = requests.adapters.HTTPAdapter(max_retries=retry)
+http = requests.Session()
+http.mount("https://", adapter)
+http.mount("http://", adapter)
 
 def build_url(subject):
     subject = subject.replace(' ', '+')
@@ -33,22 +43,35 @@ def paginate_search(url):
     page = 1    # LC pagination is 1-indexed
 
     while next_page:
-        url = f'{url}&sp={page}'
-        response = requests.get(url).json()
+        current_url = f'{url}&sp={page}'
+        response = http.get(current_url).json()
+
         page += 1
         next_page = response['pagination']['next']  # Will be null when done
         sleep(0.3)  # respect rate limit
+
         yield response
 
 
 def slurp(subject='african americans'):
     url = build_url(subject)
+    processed = 0
+    failed = 0
+
     for response in paginate_search(url):
         results = filter_results(response)
         for result in results:
             try:
                 Fetcher().full_text(result)
+                processed += 1
             except UnknownIdentifier:
-                print(f'cannot find identifier for {result["image_url"]}')
+                logging.exception(f'UNK: Could not find identifier for {result["id"]} with image_url {result["image_url"]}')
+                failed += 1
             except Exception as err:
-                print(err)
+                logging.exception(f'BAD: Failed on {result["id"]} with image_url {result["image_url"]}')
+                failed += 1
+
+    print(f'{processed} processed, {failed} failed, of {response["pagination"]["of"]} total')
+
+if __name__ == '__main__':
+    slurp()

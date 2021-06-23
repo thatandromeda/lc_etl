@@ -2,10 +2,13 @@ import os
 import re
 from urllib.parse import urlparse
 
-import bs4 as BeautifulSoup
+from bs4 import BeautifulSoup
 import requests
 
-# TODO throw a custom exception in segment_path and catch it in slurp
+# TODO do I want to fetch blogs? I've filtered them out of slurp, but a
+# general-purpose thing might need to catch it.
+# TODO add support for fetching from URL? Simple to delegate that to existing
+# functionality.
 
 
 class UnknownIdentifier(Exception):
@@ -50,14 +53,14 @@ class SearchResultToText(object):
 class LcwebSearchResultToText(SearchResultToText):
     """Extract fulltext of items whose images are hosted on lcweb2."""
 
-    ENDPOINT = 'https://lcweb2.loc.gov/'
+    endpoint = 'https://lcweb2.loc.gov/'
 
     def parse_text(self, response):
         # Even though it's an xml document, we'll get better results if we use the
         # html parser; the xml parser will add "body" and "html" tags above the top
         # level of the xml document, and then get confused about the "body" tags
         # which will exist at different, nested levels of the document.
-        soup = BeautifulSoup(response.text,  'html.parser')
+        soup = BeautifulSoup(response.text, 'html.parser')
         # Any child tags of 'p' will be rendered as None by tag.string, so we remove
         # them with the if condition. There are frequent subtags, like 'pageinfo'
         # (page metadata), which we do not want because they do not contain the
@@ -80,7 +83,7 @@ class LcwebSearchResultToText(SearchResultToText):
 
 
     def request_url(self, image_path):
-        return f'{ENDPOINT}{self.segment_path(image_path)}'
+        return f'{self.endpoint}{self.segment_path(image_path)}'
 
 
     def full_text(self):
@@ -96,27 +99,28 @@ class LcwebSearchResultToText(SearchResultToText):
 
 class IiifSearchResultToText(SearchResultToText):
     """Extract fulltext of items whose images are hosted on tile (the IIIF
-    server)."""
+    server) under image services."""
 
-    lc_iiif_prefix = r'image[\-_]services/iiif'
-    url_characters_no_period = r"-_~!*'();:@&=+$,?%#A-z0-9"
-    url_characters = url_characters_no_period + '.'
-    iiif_url = rf'/{lc_iiif_prefix}/'\
-               rf'(?P<identifier>[{url_characters}]+)/' \
-               rf'(?P<region>[{url_characters}]+)/' \
-               rf'(?P<size>[{url_characters}]+)/' \
-               rf'(?P<rotation>[{url_characters}]+)/' \
-               rf'(?P<quality>[{url_characters_no_period}]+)' \
-               rf'.(?P<format>[{url_characters}]+)'
-    lc_iiif_url_format = re.compile(iiif_url)
+    def __init__(self, result):
+        super(IiifSearchResultToText, self).__init__(result)
+        self.lc_service_prefix = r'image[\-_]services/iiif'
+        self.url_characters_no_period = r"-_~!*'();:@&=+$,?%#A-z0-9"
+        self.url_characters = self.url_characters_no_period + '.'
+        self.lc_service_url = rf'/{self.lc_service_prefix}/'\
+                              rf'(?P<identifier>[{self.url_characters}]+)/' \
+                              rf'(?P<region>[{self.url_characters}]+)/' \
+                              rf'(?P<size>[{self.url_characters}]+)/' \
+                              rf'(?P<rotation>[{self.url_characters}]+)/' \
+                              rf'(?P<quality>[{self.url_characters_no_period}]+)' \
+                              rf'.(?P<format>[{self.url_characters}]+)'
 
-    endpoint = 'https://tile.loc.gov/text-services/word-coordinates-service'
+        self.endpoint = 'https://tile.loc.gov/text-services/word-coordinates-service'
 
 
     def segment_path(self, image_url):
         image_path = urlparse(image_url).path
         try:
-            return self.lc_iiif_url_format.match(image_path).group('identifier')
+            return re.compile(self.lc_service_url).match(image_path).group('identifier')
         except AttributeError:
             raise UnknownIdentifier
 
@@ -134,6 +138,23 @@ class IiifSearchResultToText(SearchResultToText):
         # the superclass by hooking into different text parsing methods in
         # subclasses.
         return response.text
+
+
+class StorageSearchResultToText(IiifSearchResultToText):
+    """Extract fulltext of items whose images are hosted on tile (the IIIF
+    server) under storage services."""
+
+    def __init__(self, result):
+        super(StorageSearchResultToText, self).__init__(result)
+        self.lc_service_prefix = r'storage[\-_]services'
+        self.url_characters_with_slash = self.url_characters + '/'
+        self.lc_service_url = rf'/{self.lc_service_prefix}/'\
+                           rf'(?P<identifier>[{self.url_characters_with_slash}]+)/' \
+                           rf'.(?P<format>[{self.url_characters_with_slash}]+)'
+
+
+    def encoded_segment(self, image_path):
+        return f"{image_path.replace(':', '/')}.alto"
 
 
 class Fetcher(object):
