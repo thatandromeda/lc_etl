@@ -11,7 +11,9 @@ logging.basicConfig(filename='bad_results.log')
 PAGE_LENGTH = 100
 
 # Get around intermittent 500s or whatever.
-retry = requests.packages.urllib3.util.retry.Retry()
+retry = requests.packages.urllib3.util.retry.Retry(
+    status=3, status_forcelist=[429, 500, 503]
+)
 adapter = requests.adapters.HTTPAdapter(max_retries=retry)
 http = requests.Session()
 http.mount("https://", adapter)
@@ -62,7 +64,7 @@ def slurp(subject='african americans'):
         results = filter_results(response)
         for result in results:
             try:
-                Fetcher().full_text(result)
+                Fetcher(result).full_text()
                 processed += 1
             except UnknownIdentifier:
                 logging.exception(f'UNK: Could not find identifier for {result["id"]} with image_url {result["image_url"]}')

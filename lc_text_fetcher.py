@@ -38,13 +38,16 @@ class SearchResultToText(object):
         return list(set(image_paths))    # deduplicate. is this ever needed??
 
 
+    def get_text(self, image_path):
+        return requests.get(self.request_url(image_path)) # laughable absence of error-handling
+
+
     def full_text(self):
         image_paths = self.extract_image_paths()
         texts = []
 
         for image_path in image_paths:
-            response = requests.get(self.request_url(image_path)) # laughable absence of error-handling
-
+            response = self.get_text(image_path)
             texts.append(self.parse_text(response))
 
         return texts
@@ -157,16 +160,57 @@ class StorageSearchResultToText(IiifSearchResultToText):
         return f"{image_path.replace(':', '/')}.alto"
 
 
-class Fetcher(object):
-    server_to_handler = {
-        'tile.loc.gov': IiifSearchResultToText,
-        'lcweb2.loc.gov': LcwebSearchResultToText
-    }
+    def alternate_url(self, image_path):
+        return f'https://tile.loc.gov/storage-services/{image_path}.alto.xml'
 
-    def full_text(self, result):
+    def get_text(self, image_path):
+        first_attempt = super(StorageSearchResultToText, self).get_text(image_path)
+        # Unfortunately we get a 200 even if the response fails, so we have to
+        # check the contents of the response.
+        if isinstance(first_attempt, list):
+            return requests.get(self.alternate_url(image_path))
+        else:
+            return first_attempt
+
+
+class Fetcher(object):
+    def __init__(self, result):
+        self.result = result
+        self.server_to_handler = {
+            'tile.loc.gov': self._tile_handler,
+            'lcweb2.loc.gov': self._lcweb_handler
+        }
+
+
+    def _tile_handler(self, image_url):
+        if 'image-services' in image_url:
+            return IiifSearchResultToText(self.result)
+        elif 'storage-services' in image_url:
+            return StorageSearchResultToText(self.result)
+        else:
+            raise(f'No handler registered for {image_url}')
+
+
+    def _lcweb_handler(self, image_url):
+        return LcwebSearchResultToText(self.result)
+
+
+    def _single_url_full_text(self, image_url):
+        server = urlparse(image_url).netloc
+        return self.server_to_handler[server](image_url).full_text()
+
+        pass
+
+    def full_text(self):
         """
         Initialize a handler that knows how to fetch fulltext for images hosted
         on the given server, and delegate to its full_text method.
         """
-        server = urlparse(result['image_url'][0]).netloc
-        return self.server_to_handler[server](result).full_text()
+        text = None
+
+        for image_url in self.result['image_url']:
+            text = self._single_url_full_text(image_url)
+            if text:
+                break
+
+        return text
