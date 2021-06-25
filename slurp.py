@@ -9,6 +9,7 @@ from lc_text_fetcher import Fetcher, UnknownIdentifier
 logging.basicConfig(filename='bad_results.log')
 
 PAGE_LENGTH = 100
+TIMEOUT = 2
 
 # Get around intermittent 500s or whatever.
 retry = requests.packages.urllib3.util.retry.Retry(
@@ -46,7 +47,7 @@ def paginate_search(url):
 
     while next_page:
         current_url = f'{url}&sp={page}'
-        response = http.get(current_url, timeout=3).json()
+        response = http.get(current_url, timeout=TIMEOUT).json()
 
         page += 1
         next_page = response['pagination']['next']  # Will be null when done
@@ -60,21 +61,22 @@ def slurp(subject='african americans'):
     processed = 0
     failed = 0
     not_found = 0
+    found = 0
     total_words = 0
 
     progress = 0
     for response in paginate_search(url):
-        progress += 1
-        if progress % 100 == 0:
-            print(f'{progress} urls processed')
         results = filter_results(response)
+        print(f'Processing {len(results)} usable results...')
         for result in results:
+            processed += 1
             try:
                 text = Fetcher(result).full_text()
                 if text:
-                    processed += 1
+                    found += 1
                     total_words += len(text.split(' '))
                 else:
+                    logging.warning(f'WAT: Could not locate text for {result["id"]}')
                     not_found += 1
             except UnknownIdentifier:
                 logging.exception(f'UNK: Could not find identifier for {result["id"]} with image_url {result["image_url"]}')
@@ -83,7 +85,7 @@ def slurp(subject='african americans'):
                 logging.exception(f'BAD: Failed on {result["id"]} with image_url {result["image_url"]}')
                 failed += 1
 
-    print(f'{processed} processed, {not_found} not found, {failed} failed, of {response["pagination"]["of"]} total')
+    print(f'{processed} processed, {found} texts found with {total_words} total words, {not_found} not found, {failed} failed, of {response["pagination"]["of"]} total')
 
 if __name__ == '__main__':
     slurp()

@@ -1,5 +1,6 @@
 import os
 import re
+from time import sleep
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -11,7 +12,8 @@ import requests
 # functionality.
 # TODO inheritance uncomfortably deep
 
-TIMEOUT = 3
+
+TIMEOUT = 2
 
 class UnknownIdentifier(Exception):
     pass
@@ -26,7 +28,7 @@ class SearchResultToText(object):
         self.image_url = image_url
 
 
-    def _http():
+    def _http(self):
         # Get around intermittent 500s or whatever.
         retry = requests.packages.urllib3.util.retry.Retry(
             status=3, status_forcelist=[429, 500, 503]
@@ -56,17 +58,14 @@ class SearchResultToText(object):
 
 
     def get_text(self, image_path):
-        return self._http.get(self.request_url(image_path), timeout=TIMEOUT)
+        sleep(0.3)  # avoid rate-limiting
+        return self._http().get(self.request_url(image_path), timeout=TIMEOUT)
 
 
     def full_text(self):
         image_path = self.extract_image_path()
-        texts = []
-
         response = self.get_text(image_path)
-        texts.append(self.parse_text(response))
-
-        return texts
+        return self.parse_text(response)
 
 
 class LcwebSearchResultToText(SearchResultToText):
@@ -133,7 +132,6 @@ class TileSearchResultToText(SearchResultToText):
         # the superclass by hooking into different text parsing methods in
         # subclasses.
         return response.text
-
 
 
 class IiifSearchResultToText(TileSearchResultToText):
