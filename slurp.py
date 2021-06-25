@@ -46,7 +46,7 @@ def paginate_search(url):
 
     while next_page:
         current_url = f'{url}&sp={page}'
-        response = http.get(current_url).json()
+        response = http.get(current_url, timeout=3).json()
 
         page += 1
         next_page = response['pagination']['next']  # Will be null when done
@@ -59,13 +59,23 @@ def slurp(subject='african americans'):
     url = build_url(subject)
     processed = 0
     failed = 0
+    not_found = 0
+    total_words = 0
 
+    progress = 0
     for response in paginate_search(url):
+        progress += 1
+        if progress % 100 == 0:
+            print(f'{progress} urls processed')
         results = filter_results(response)
         for result in results:
             try:
-                Fetcher(result).full_text()
-                processed += 1
+                text = Fetcher(result).full_text()
+                if text:
+                    processed += 1
+                    total_words += len(text.split(' '))
+                else:
+                    not_found += 1
             except UnknownIdentifier:
                 logging.exception(f'UNK: Could not find identifier for {result["id"]} with image_url {result["image_url"]}')
                 failed += 1
@@ -73,7 +83,7 @@ def slurp(subject='african americans'):
                 logging.exception(f'BAD: Failed on {result["id"]} with image_url {result["image_url"]}')
                 failed += 1
 
-    print(f'{processed} processed, {failed} failed, of {response["pagination"]["of"]} total')
+    print(f'{processed} processed, {not_found} not found, {failed} failed, of {response["pagination"]["of"]} total')
 
 if __name__ == '__main__':
     slurp()

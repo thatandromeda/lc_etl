@@ -9,15 +9,34 @@ import requests
 # general-purpose thing might need to catch it.
 # TODO add support for fetching from URL? Simple to delegate that to existing
 # functionality.
+# TODO inheritance uncomfortably deep
 
+TIMEOUT = 3
 
 class UnknownIdentifier(Exception):
     pass
 
 
+class UnknownHandler(Exception):
+    pass
+
+
 class SearchResultToText(object):
-    def __init__(self, result):
-        self.result = result
+    def __init__(self, image_url):
+        self.image_url = image_url
+
+
+    def _http():
+        # Get around intermittent 500s or whatever.
+        retry = requests.packages.urllib3.util.retry.Retry(
+            status=3, status_forcelist=[429, 500, 503]
+        )
+        adapter = requests.adapters.HTTPAdapter(max_retries=retry)
+        http = requests.Session()
+        http.mount("https://", adapter)
+        http.mount("http://", adapter)
+
+        return http
 
 
     def segment_path(self, image_url):
@@ -32,23 +51,20 @@ class SearchResultToText(object):
         raise NotImplementedError
 
 
-    def extract_image_paths(self):
-        image_urls = self.result['image_url']    # laughable absence of error-handling
-        image_paths = [self.segment_path(image_url) for image_url in image_urls]
-        return list(set(image_paths))    # deduplicate. is this ever needed??
+    def extract_image_path(self):
+        return self.segment_path(self.image_url)
 
 
     def get_text(self, image_path):
-        return requests.get(self.request_url(image_path)) # laughable absence of error-handling
+        return self._http.get(self.request_url(image_path), timeout=TIMEOUT)
 
 
     def full_text(self):
-        image_paths = self.extract_image_paths()
+        image_path = self.extract_image_path()
         texts = []
 
-        for image_path in image_paths:
-            response = self.get_text(image_path)
-            texts.append(self.parse_text(response))
+        response = self.get_text(image_path)
+        texts.append(self.parse_text(response))
 
         return texts
 
@@ -89,34 +105,14 @@ class LcwebSearchResultToText(SearchResultToText):
         return f'{self.endpoint}{self.segment_path(image_path)}'
 
 
-    def full_text(self):
-        image_paths = self.extract_image_paths()
-        texts = []
+class TileSearchResultToText(SearchResultToText):
+    """Includes the features common to fetching fulltext whose images are stored
+    on the tile.loc.gov server. Not intended to be used as-is."""
 
-        for image_path in image_paths:
-            response = requests.get(self.request_url(image_path))
-            texts.append(self.parse_text(response))
-
-        return texts
-
-
-class IiifSearchResultToText(SearchResultToText):
-    """Extract fulltext of items whose images are hosted on tile (the IIIF
-    server) under image services."""
-
-    def __init__(self, result):
-        super(IiifSearchResultToText, self).__init__(result)
-        self.lc_service_prefix = r'image[\-_]services/iiif'
+    def __init__(self, image_url):
+        super(TileSearchResultToText, self).__init__(image_url)
         self.url_characters_no_period = r"-_~!*'();:@&=+$,?%#A-z0-9"
         self.url_characters = self.url_characters_no_period + '.'
-        self.lc_service_url = rf'/{self.lc_service_prefix}/'\
-                              rf'(?P<identifier>[{self.url_characters}]+)/' \
-                              rf'(?P<region>[{self.url_characters}]+)/' \
-                              rf'(?P<size>[{self.url_characters}]+)/' \
-                              rf'(?P<rotation>[{self.url_characters}]+)/' \
-                              rf'(?P<quality>[{self.url_characters_no_period}]+)' \
-                              rf'.(?P<format>[{self.url_characters}]+)'
-
         self.endpoint = 'https://tile.loc.gov/text-services/word-coordinates-service'
 
 
@@ -126,10 +122,6 @@ class IiifSearchResultToText(SearchResultToText):
             return re.compile(self.lc_service_url).match(image_path).group('identifier')
         except AttributeError:
             raise UnknownIdentifier
-
-
-    def encoded_segment(self, image_path):
-        return image_path.replace(':', '/')
 
 
     def request_url(self, image_path):
@@ -143,12 +135,33 @@ class IiifSearchResultToText(SearchResultToText):
         return response.text
 
 
-class StorageSearchResultToText(IiifSearchResultToText):
+
+class IiifSearchResultToText(TileSearchResultToText):
+    """Extract fulltext of items whose images are hosted on tile (the IIIF
+    server) under image services."""
+
+    def __init__(self, image_url):
+        super(IiifSearchResultToText, self).__init__(image_url)
+        self.lc_service_prefix = r'image[\-_]services/iiif'
+        self.lc_service_url = rf'/{self.lc_service_prefix}/'\
+                              rf'(?P<identifier>[{self.url_characters}]+)/' \
+                              rf'(?P<region>[{self.url_characters}]+)/' \
+                              rf'(?P<size>[{self.url_characters}]+)/' \
+                              rf'(?P<rotation>[{self.url_characters}]+)/' \
+                              rf'(?P<quality>[{self.url_characters_no_period}]+)' \
+                              rf'.(?P<format>[{self.url_characters}]+)'
+
+
+    def encoded_segment(self, image_path):
+        return image_path.replace(':', '/')
+
+
+class StorageSearchResultToText(TileSearchResultToText):
     """Extract fulltext of items whose images are hosted on tile (the IIIF
     server) under storage services."""
 
-    def __init__(self, result):
-        super(StorageSearchResultToText, self).__init__(result)
+    def __init__(self, image_url):
+        super(StorageSearchResultToText, self).__init__(image_url)
         self.lc_service_prefix = r'storage[\-_]services'
         self.url_characters_with_slash = self.url_characters + '/'
         self.lc_service_url = rf'/{self.lc_service_prefix}/'\
@@ -162,6 +175,7 @@ class StorageSearchResultToText(IiifSearchResultToText):
 
     def alternate_url(self, image_path):
         return f'https://tile.loc.gov/storage-services/{image_path}.alto.xml'
+
 
     def get_text(self, image_path):
         first_attempt = super(StorageSearchResultToText, self).get_text(image_path)
@@ -178,39 +192,49 @@ class Fetcher(object):
         self.result = result
         self.server_to_handler = {
             'tile.loc.gov': self._tile_handler,
-            'lcweb2.loc.gov': self._lcweb_handler
+            'lcweb2.loc.gov': self._lcweb2_handler
         }
 
 
     def _tile_handler(self, image_url):
         if 'image-services' in image_url:
-            return IiifSearchResultToText(self.result)
+            return IiifSearchResultToText(image_url)
         elif 'storage-services' in image_url:
-            return StorageSearchResultToText(self.result)
+            return StorageSearchResultToText(image_url)
         else:
-            raise(f'No handler registered for {image_url}')
+            raise UnknownHandler(f'No handler registered for {image_url}')
 
 
-    def _lcweb_handler(self, image_url):
-        return LcwebSearchResultToText(self.result)
+    def _lcweb2_handler(self, image_url):
+        return LcwebSearchResultToText(image_url)
 
 
     def _single_url_full_text(self, image_url):
         server = urlparse(image_url).netloc
         return self.server_to_handler[server](image_url).full_text()
 
-        pass
+
+    def is_valid(self, text):
+        return all([
+            bool(text),
+            not isinstance(text, list)
+        ])
+
 
     def full_text(self):
         """
         Initialize a handler that knows how to fetch fulltext for images hosted
         on the given server, and delegate to its full_text method.
+
+        Assumes that all image_urls correspond to the same text; therefore
+        returns the first acceptable text.
         """
         text = None
 
         for image_url in self.result['image_url']:
-            text = self._single_url_full_text(image_url)
-            if text:
+            candidate = self._single_url_full_text(image_url)
+            if self.is_valid(candidate):
+                text = candidate
                 break
 
         return text
