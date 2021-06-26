@@ -207,9 +207,9 @@ class Fetcher(object):
         return LcwebSearchResultToText(image_url)
 
 
-    def _single_url_full_text(self, image_url):
+    def _get_handler(self, image_url):
         server = urlparse(image_url).netloc
-        return self.server_to_handler[server](image_url).full_text()
+        return self.server_to_handler[server](image_url)
 
 
     def is_valid(self, text):
@@ -223,7 +223,7 @@ class Fetcher(object):
         text = None
 
         for image_url in self.result['image_url']:
-            candidate = self._single_url_full_text(image_url)
+            candidate = self._get_handler(image_url).full_text()
             if self.is_valid(candidate):
                 text = candidate
                 break
