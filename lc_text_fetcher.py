@@ -219,14 +219,7 @@ class Fetcher(object):
         ])
 
 
-    def full_text(self):
-        """
-        Initialize a handler that knows how to fetch fulltext for images hosted
-        on the given server, and delegate to its full_text method.
-
-        Assumes that all image_urls correspond to the same text; therefore
-        returns the first acceptable text.
-        """
+    def _get_text_from_image(self):
         text = None
 
         for image_url in self.result['image_url']:
@@ -236,3 +229,22 @@ class Fetcher(object):
                 break
 
         return text
+
+
+    def _get_text_from_audio(self):
+        return StorageSearchResultToText(image_url).full_text()
+
+
+    def full_text(self):
+        """
+        Initialize a handler that knows how to fetch fulltext for images hosted
+        on the given server, and delegate to its full_text method.
+
+        Assumes that all image_urls correspond to the same text; therefore
+        returns the first acceptable text.
+        """
+
+        if 'audio' in result['online_format']:
+            return self._get_text_from_audio()
+        else:
+            return self._get_text_from_image()
