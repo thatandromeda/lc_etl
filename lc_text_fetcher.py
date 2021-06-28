@@ -1,17 +1,16 @@
 import os
 import re
 from time import sleep
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 import requests
 
 # TODO do I want to fetch blogs? I've filtered them out of slurp, but a
 # general-purpose thing might need to catch it.
-# TODO add support for fetching from URL? Simple to delegate that to existing
-# functionality.
 # TODO inheritance uncomfortably deep
-
+# TODO deal with responses like {url: {'full_text': 'blah'}}
+# TODO audio still not working; see e.g. http://www.loc.gov/item/afc1941016_afs05499a/
 
 TIMEOUT = 2
 
@@ -23,9 +22,17 @@ class UnknownHandler(Exception):
     pass
 
 
+class ObjectNotOnline(Exception):
+    pass
+
+
 class SearchResultToText(object):
     def __init__(self, image_url):
         self.image_url = image_url
+        self.url_characters_no_period = r"-_~!*'();:@&=+$,?%#A-z0-9"
+        self.url_characters = self.url_characters_no_period + '.'
+        self.url_characters_with_slash = self.url_characters + '/'
+        self.not_found = rf'The requested URL {self.url_characters_with_slash}.xml was not found on this server.'
 
 
     def _http(self):
@@ -57,6 +64,16 @@ class SearchResultToText(object):
         return self.segment_path(self.image_url)
 
 
+    def is_valid(self, response):
+        return all([
+            bool(response.text),
+            not isinstance(response.text, list),
+            not '"error":"[Errno 2] No such file or directory:' in response.text,
+            not re.compile(self.not_found).match(response.text),
+            response.status_code == 200
+        ])
+
+
     def get_text(self, image_path):
         sleep(0.3)  # avoid rate-limiting
         return self._http().get(self.request_url(image_path), timeout=TIMEOUT)
@@ -65,7 +82,10 @@ class SearchResultToText(object):
     def full_text(self):
         image_path = self.extract_image_path()
         response = self.get_text(image_path)
-        return self.parse_text(response)
+        if self.is_valid(response):
+            return self.parse_text(response)
+        else:
+            return None
 
 
 class LcwebSearchResultToText(SearchResultToText):
@@ -110,8 +130,6 @@ class TileSearchResultToText(SearchResultToText):
 
     def __init__(self, image_url):
         super(TileSearchResultToText, self).__init__(image_url)
-        self.url_characters_no_period = r"-_~!*'();:@&=+$,?%#A-z0-9"
-        self.url_characters = self.url_characters_no_period + '.'
         self.endpoint = 'https://tile.loc.gov/text-services/word-coordinates-service'
 
 
@@ -128,10 +146,12 @@ class TileSearchResultToText(SearchResultToText):
 
 
     def parse_text(self, response):
-        # Seems like practically a no-op, but allows for full_text to live in
+        # Seems like almost a no-op, but allows for full_text to live in
         # the superclass by hooking into different text parsing methods in
         # subclasses.
-        return response.text
+        # The and condition means this will return None if the response is
+        # empty.
+        return response and response.text
 
 
 class IiifSearchResultToText(TileSearchResultToText):
@@ -161,7 +181,6 @@ class StorageSearchResultToText(TileSearchResultToText):
     def __init__(self, image_url):
         super(StorageSearchResultToText, self).__init__(image_url)
         self.lc_service_prefix = r'storage[\-_]services'
-        self.url_characters_with_slash = self.url_characters + '/'
         self.lc_service_url = rf'/{self.lc_service_prefix}/'\
                            rf'(?P<identifier>[{self.url_characters_with_slash}]+)/' \
                            rf'.(?P<format>[{self.url_characters_with_slash}]+)'
@@ -171,21 +190,61 @@ class StorageSearchResultToText(TileSearchResultToText):
         return f"{image_path.replace(':', '/')}.alto"
 
 
-    def alternate_url(self, image_path):
-        return f'https://tile.loc.gov/storage-services/{image_path}.alto.xml'
+    def alternate_urls(self, image_path):
+        final_id = image_path.split('/')[-1]
+        return [
+            f'https://tile.loc.gov/storage-services/{image_path}.alto.xml',
+            f'https://tile.loc.gov/storage-services/{image_path}/{final_id}.xml',
+        ]
 
 
     def get_text(self, image_path):
-        first_attempt = super(StorageSearchResultToText, self).get_text(image_path)
-        # Unfortunately we get a 200 even if the response fails, so we have to
-        # check the contents of the response.
-        if isinstance(first_attempt, list):
-            return requests.get(self.alternate_url(image_path))
-        else:
-            return first_attempt
+        urls = [self.request_url(image_path)] + self.alternate_urls(image_path)
+
+        for url in urls:
+            response = self._http().get(url, timeout=TIMEOUT)
+            if response:
+                return response
+            else:
+                sleep(0.3)  # avoid rate-limiting
+
+        return None
 
 
 class Fetcher(object):
+    """
+    Fetch full text for Library of Congress items. Return None if full text is
+    not found.
+
+    Fetcher.full_text_from_url:
+        Given the URL of an item, find its full text.
+
+    Fetcher(result).full_text():
+        Given the JSON representation of a single item, find its full text.
+
+    OCRed text is stored on different servers with different URL formats, and
+    the full text URL is not usually part of the search result, so there is no
+    one single pattern for finding the OCR URL. Fetcher is actually responsible
+    for identifying which of several handlers is most likely to succeed for this
+    item, and delegating to its full_text() method.
+
+    There are no guarantees about OCR quality; some texts may be unsuitable for
+    some purposes. The caller is responsible for assessing quality.
+
+    While Fetcher makes a good-faith attempt to respect rate limiting,
+    intermittent server failures mean that text will not always be fetched even
+    if it exists.
+    """
+    @classmethod
+    def full_text_from_url(cls, url):
+        """Given a URL of an item at LOC, fetches the fulltext of that item."""
+        parsed_url = urlparse(url)
+        base_url = urlunparse(
+            (parsed_url.scheme, parsed_url.netloc, parsed_url.path, '', 'fo=json', '')
+        )
+        result = requests.get(base_url).json()['item']
+        return Fetcher(result).full_text()
+
     def __init__(self, result):
         self.result = result
         self.server_to_handler = {
@@ -207,32 +266,23 @@ class Fetcher(object):
         return LcwebSearchResultToText(image_url)
 
 
-    def _get_handler(self, image_url):
+    def _single_url_full_text(self, image_url):
         server = urlparse(image_url).netloc
-        return self.server_to_handler[server](image_url)
-
-
-    def is_valid(self, text):
-        return all([
-            bool(text),
-            not isinstance(text, list)
-        ])
+        return self.server_to_handler[server](image_url).full_text()
 
 
     def _get_text_from_image(self):
-        text = None
-
         for image_url in self.result['image_url']:
-            candidate = self._get_handler(image_url).full_text()
-            if self.is_valid(candidate):
-                text = candidate
-                break
+            candidate = self._single_url_full_text(image_url)
+            if candidate:
+                return candidate
 
-        return text
+        return None
 
 
     def _get_text_from_audio(self):
-        return StorageSearchResultToText(image_url).full_text()
+        text = StorageSearchResultToText(image_url).full_text()
+        return text
 
 
     def full_text(self):
@@ -244,7 +294,12 @@ class Fetcher(object):
         returns the first acceptable text.
         """
 
-        if 'audio' in result['online_format']:
+        try:
+            format = self.result['online_format']
+        except KeyError:
+            raise ObjectNotOnline(f'{self.result['id']} does not have an online_format key')
+
+        if 'audio' in format:
             return self._get_text_from_audio()
         else:
             return self._get_text_from_image()

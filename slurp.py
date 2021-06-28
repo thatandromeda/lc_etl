@@ -70,8 +70,13 @@ def slurp(subject='african americans'):
         print(f'Processing {len(results)} usable results...')
         for result in results:
             processed += 1
+            if processed % 100 == 0:
+                print(f'...{processed} processed')
             try:
                 text = Fetcher(result).full_text()
+                if len(text) < 1000:
+                    print(text)
+                    print(result['id'])
                 if text:
                     found += 1
                     total_words += len(text.split(' '))
