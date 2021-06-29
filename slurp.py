@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from lc_text_fetcher import Fetcher, UnknownIdentifier
+from locr import Fetcher, UnknownIdentifier
 
 logging.basicConfig(filename='bad_results.log')
 
