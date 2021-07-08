@@ -1,2 +1,5 @@
 lab_notebook/
 *.log
+*.pkl
+__pycache__
+gensim_outputs/

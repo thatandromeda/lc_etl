@@ -1,15 +1,16 @@
+from collections import defaultdict
 import logging
-from time import sleep
+import time
 from urllib.parse import urlparse
 
 import requests
 
 from locr import Fetcher, UnknownIdentifier
 
-logging.basicConfig(filename='bad_results.log')
+timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
 PAGE_LENGTH = 100
-TIMEOUT = 2
+TIMEOUT = 3
 
 # Get around intermittent 500s or whatever.
 retry = requests.packages.urllib3.util.retry.Retry(
@@ -51,46 +52,52 @@ def paginate_search(url):
 
         page += 1
         next_page = response['pagination']['next']  # Will be null when done
-        sleep(0.3)  # respect rate limit
+        time.sleep(0.3)  # respect rate limit
 
         yield response
 
 
-def slurp(subject='african americans'):
+def slurp(subject='african americans', as_iterator=False):
+    '''
+    Given a subject term, queries the Library of Congress API for text documents
+    matching that term.
+
+    When run with as_iterator=True, will yield the documents one by one (along
+    with their LOC ID), as well as collecting summary statistics. When run with
+    as_iterator=False (the default), will only collect summary statistics.
+    '''
+    logging.basicConfig(filename=f'slurp_{timestamp}.log')
+
     url = build_url(subject)
-    processed = 0
-    failed = 0
-    not_found = 0
-    found = 0
-    total_words = 0
+    stats = defaultdict(int)
 
     progress = 0
     for response in paginate_search(url):
         results = filter_results(response)
         print(f'Processing {len(results)} usable results...')
         for result in results:
-            processed += 1
-            if processed % 100 == 0:
-                print(f'...{processed} processed')
+            stats['processed'] += 1
+            if stats['processed'] % 100 == 0:
+                print(f'...{stats["processed"]} processed')
             try:
                 text = Fetcher(result).full_text()
-                if len(text) < 1000:
-                    print(text)
-                    print(result['id'])
                 if text:
-                    found += 1
-                    total_words += len(text.split(' '))
+                    stats['found'] += 1
+                    stats['total_words'] += len(text.split(' '))
+                if as_iterator:
+                    yield (result["id"], text)
+
                 else:
                     logging.warning(f'WAT: Could not locate text for {result["id"]}')
-                    not_found += 1
+                    stats['not_found'] += 1
             except UnknownIdentifier:
                 logging.exception(f'UNK: Could not find identifier for {result["id"]} with image_url {result["image_url"]}')
-                failed += 1
+                stats['failed'] += 1
             except Exception as err:
                 logging.exception(f'BAD: Failed on {result["id"]} with image_url {result["image_url"]}')
-                failed += 1
+                stats['failed'] += 1
 
-    print(f'{processed} processed, {found} texts found with {total_words} total words, {not_found} not found, {failed} failed, of {response["pagination"]["of"]} total')
+    print(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
 
 if __name__ == '__main__':
     slurp()
