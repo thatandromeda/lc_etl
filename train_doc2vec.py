@@ -88,3 +88,4 @@ model.train(corpus,
             epochs=model.epochs,
             callbacks=[epoch_logger])
 model.save(f'{output_dir}/model_{timestamp}')
+# load with model = gensim.models.Doc2Vec.load("path/to/model")

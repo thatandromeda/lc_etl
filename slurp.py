@@ -9,7 +9,7 @@ from locr import Fetcher, UnknownIdentifier
 
 timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
-PAGE_LENGTH = 100
+PAGE_LENGTH = 1000  # LOC API team thinks this is the maximum allowable
 TIMEOUT = 3
 
 # Get around intermittent 500s or whatever.
