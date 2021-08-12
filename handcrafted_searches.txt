@@ -1,0 +1,52 @@
+https://www.loc.gov/search/?fa=contributor:american+colonization+society
+https://www.loc.gov/collections/abraham-lincoln-papers/
+https://www.loc.gov/collections/salmon-p-chase-papers/
+https://www.loc.gov/collections/james-a-garfield-papers/about-this-collection/ (president 1881)
+https://www.loc.gov/collections/andrew-johnson-papers/about-this-collection/
+https://www.loc.gov/item/29009286/
+https://www.loc.gov/collections/frederick-douglass-papers/
+https://www.loc.gov/collections/thaddeus-stevens-papers/about-this-collection/
+https://www.loc.gov/collections/e-b-washburne-papers/about-this-collection/
+
+# not available online
+"Blair Family",
+"Benjamin H. Bristow",
+"Benjamin F. Butler",
+"William E. Chandler",
+"William W. Clapp",
+"John Covode",
+"Henry L. Dawes",
+"Andrew Johnson",  IS but only in part (as with Lincoln, about half-there)
+"Manton Marble",
+"Carl Schurz",
+"Lyman Trumbull",
+
+# sometimes in Hathi
+https://www.loc.gov/collections/salmon-p-chase-papers/about-this-collection/related-resources/
+
+https://chroniclingamerica.loc.gov/essays/
+
+https://www.loc.gov/item/29009286/
+  carl Schurz papers unavailable, but this is close
+
+
+# Not in Foner, but maybe relevant
+https://www.loc.gov/collections/louis-malesherbes-goldsborough-papers/about-this-collection/
+https://www.loc.gov/collections/chester-alan-arthur-papers/about-this-collection/ 1881-1885 president
+https://www.loc.gov/collections/william-t-sherman-papers/about-this-collection/
+https://www.loc.gov/collections/john-g-nicolay-papers/about-this-collection/
+https://www.loc.gov/collections/wm-oland-bourne-papers/about-this-collection/
+https://www.loc.gov/collections/mary-church-terrell-papers/about-this-collection/ (very civil rights, maybe too late)
+https://www.loc.gov/collections/horace-greeley-papers/about-this-collection/
+https://www.loc.gov/collections/confederate-states-of-america-records/about-this-collection/
+
+# Not in Foner but even more maybe relevant
+https://www.loc.gov/collections/anna-e-dickinson-papers/about-this-collection/ teenage antislavery campaigner, later Republican activist, plus actress (!)
+https://www.loc.gov/collections/alexander-hamilton-stephens-papers/about-this-collection/ DEFINITELY (confederate leader involved in Reconstruction)
+https://www.loc.gov/collections/ulysses-s-grant-papers/about-this-collection/
+https://www.loc.gov/collections/philip-henry-sheridan-papers/about-this-collection/
+https://www.loc.gov/collections/frederick-douglass-papers/about-this-collection/
+you probably want to filter to less frederick douglass stuff, e.g. you don't need his personal legal papers
+then again, if you train on all of this, you can look for those as a guide to what to filter, possibly
+https://www.loc.gov/collections/edwin-mcmasters-stanton-papers/about-this-collection/
+https://www.loc.gov/collections/federal-writers-project/about-this-collection/ but only the ex-slave narratives part? Which is https://memory.loc.gov/ammem/awhhtml/awafc11/ex-slave.html, but oyyyy. -- ah but they are here https://www.loc.gov/collections/slave-narratives-from-the-federal-writers-project-1936-to-1938/

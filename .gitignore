@@ -3,3 +3,4 @@ lab_notebook/
 *.pkl
 __pycache__
 gensim_outputs/
+results*/

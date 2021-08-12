@@ -12,22 +12,68 @@ timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 PAGE_LENGTH = 1000  # LOC API team thinks this is the maximum allowable
 TIMEOUT = 3
 
-# Get around intermittent 500s or whatever.
-retry = requests.packages.urllib3.util.retry.Retry(
-    status=3, status_forcelist=[429, 500, 503]
-)
-adapter = requests.adapters.HTTPAdapter(max_retries=retry)
-http = requests.Session()
-http.mount("https://", adapter)
-http.mount("http://", adapter)
+def http_adapter():
+    # Get around intermittent 500s or whatever.
+    retry = requests.packages.urllib3.util.retry.Retry(
+        status=3, status_forcelist=[429, 500, 503]
+    )
+    adapter = requests.adapters.HTTPAdapter(max_retries=retry)
+    http = requests.Session()
+    http.mount("https://", adapter)
+    http.mount("http://", adapter)
+    return http
 
-def build_url(subject):
-    subject = subject.replace(' ', '+')
-    return 'https://www.loc.gov/search/?fo=json' \
-           f'&fa=subject:{subject}' \
-           '&fa=access-restricted:false' \
-           '&fa=online-format:online-text' \
-           f'&c={PAGE_LENGTH}' \
+
+class LocUrl(object):
+    """docstring for LocUrl."""
+
+    def __init__(self, **kwargs):
+        super(LocUrl, self).__init__()
+        self.collection = kwargs.get('collection')
+        self.query = kwargs.get('q')
+        self.subject = kwargs.get('subject')
+        self.identifier = kwargs.get('identifier')
+        self.format = kwargs.get('format')
+        self.title = kwargs.get('title')
+        self.validate()
+        self.base = 'https://www.loc.gov'
+        self.kwargs = ['fo=json']
+
+    def validate(self):
+        endpoints = [self.identifier, self.collection, self.format, self.query]
+        if len(list(filter(lambda x: x is not None, endpoints))) == 0:
+            raise('Must specify an endpoint (identifier, collection, format) or query')
+        elif len(list(filter(lambda x: x is not None, endpoints))) > 1:
+            raise('May specify only endpoint (identifier, collection, format, or query)')
+
+        if self.identifier and self.subject:
+            raise('Cannot specify both an item identifier and a subject')
+
+
+    def slugify(self, value):
+        return value.replace(' ', '-')
+
+
+    def construct(self):
+        if self.collection:
+            endpoint = f'{self.base}/collection/{self.slugify(self.collection)}'
+        elif self.identifier:
+            endpoint = f'{self.base}/item/{self.collection}'
+        else:
+            endpoint = f'{self.base}/search'
+
+        if self.subject:
+            self.kwargs.append(f'fa=subject:{self.subject}')
+
+        if self.query:
+            self.kwargs.append(f'q={self.slugify(self.query)}')
+
+        if self.title:
+            self.kwargs.append(f'fa=partof_title:{self.slugify(self.title)}')
+
+        querystring = '&'.join(self.kwargs)
+
+        return f'{endpoint}/?{querystring}'
 
 
 def filter_results(response):
@@ -45,6 +91,7 @@ def filter_results(response):
 def paginate_search(url):
     next_page = True
     page = 1    # LC pagination is 1-indexed
+    http = http_adapter()
 
     while next_page:
         current_url = f'{url}&sp={page}'
@@ -57,10 +104,18 @@ def paginate_search(url):
         yield response
 
 
-def slurp(subject='african americans', as_iterator=False):
+def filenamify(result):
+    name = result['id']
+    name = name.split('/')
+    # will strip null string after trailing slash if present
+    name = [x for x in name if x]
+    return f'results/{name[-1]}'
+
+
+def slurp(**kwargs):
     '''
-    Given a subject term, queries the Library of Congress API for text documents
-    matching that term.
+    Given a query parameters matching the LocUrl options, queries the Library of
+    Congress API for text documents matching that term.
 
     When run with as_iterator=True, will yield the documents one by one (along
     with their LOC ID), as well as collecting summary statistics. When run with
@@ -68,7 +123,8 @@ def slurp(subject='african americans', as_iterator=False):
     '''
     logging.basicConfig(filename=f'slurp_{timestamp}.log')
 
-    url = build_url(subject)
+    kwargs['q'] = kwargs['query']
+    url = LocUrl(**kwargs).construct()
     stats = defaultdict(int)
 
     progress = 0
@@ -84,8 +140,10 @@ def slurp(subject='african americans', as_iterator=False):
                 if text:
                     stats['found'] += 1
                     stats['total_words'] += len(text.split(' '))
-                if as_iterator:
-                    yield (result["id"], text)
+                    # if kwargs.get('as_iterator'):
+                    #     yield (result["id"], text)
+                    with open(filenamify(result), 'w') as f:
+                        f.write(text)
 
                 else:
                     logging.warning(f'WAT: Could not locate text for {result["id"]}')
@@ -98,6 +156,7 @@ def slurp(subject='african americans', as_iterator=False):
                 stats['failed'] += 1
 
     print(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
+
 
 if __name__ == '__main__':
     slurp()
