@@ -4,3 +4,5 @@ lab_notebook/
 __pycache__
 gensim_outputs/
 results*/
+newspapers/
+*.zip

@@ -1,9 +1,11 @@
 from collections import defaultdict
+import os
 import pickle
 import re
-from time import sleep
-
 import requests
+import shutil
+import subprocess
+from time import sleep
 
 from slurp import http_adapter
 
@@ -28,7 +30,7 @@ newspapers_list = ["American Freedman", "Annual Cyclopedia",
     "Springfield Republican", "The Great Republic (Washington, D.C.)",
     "The Nation", "Tribune Almanac", "Washington Chronicle"]
 
-
+http = http_adapter()
 
 # ~*~*~*~*~*~*~*~*~*~*~*~*~*~ find ALL the batches ~*~*~*~*~*~*~*~*~*~*~*~*~*~ #
 
@@ -36,7 +38,7 @@ newspapers_list = ["American Freedman", "Annual Cyclopedia",
 # many-to-many relationship between lccns and batches.
 def create_lccn_to_batch():
     retval = defaultdict(set)
-    batches = requests.get('https://chroniclingamerica.loc.gov/batches.json').json()
+    batches = http.get('https://chroniclingamerica.loc.gov/batches.json').json()
     iteration = 0
 
     while batches.get('next'):
@@ -46,7 +48,7 @@ def create_lccn_to_batch():
                 retval[lccn].add(batch['name'])
         print(f'{iteration}: about to process {batches["next"]}')
         iteration += 1
-        batches = requests.get(batches['next']).json()
+        batches = http.get(batches['next']).json()
         sleep(0.2)
 
     return retval
@@ -64,7 +66,6 @@ except:
 def check_all_reconstruction_era_papers():
     more_to_go = True
     page = 1
-    http = http_adapter()
     chronam_id = re.compile(r'/lccn/(\w+)/')
     all_lccns = set()
     while more_to_go == True:
@@ -104,7 +105,7 @@ def identify_batches_from_titles():
     available_newspapers = set()
     for newspaper in newspapers_list:
         name = newspaper.replace(' ', '+')
-        response = requests.get(f'https://chroniclingamerica.loc.gov/suggest/titles/?q={name}')
+        response = http.get(f'https://chroniclingamerica.loc.gov/suggest/titles/?q={name}')
         # The structure of the returned content is:
         # [search_term, [matching titles], [their lccns], [their urls]]
         lccns = response.json()[2]
@@ -140,7 +141,7 @@ all_batches_needed = identify_batches_from_lccns()
 
 # ~*~*~*~*~*~*~*~*~*~*~*~*~ narrow to usable batches ~*~*~*~*~*~*~*~*~*~*~*~*~ #
 def restrict_to_ocred_batches():
-    ocr_available = requests.get('https://chroniclingamerica.loc.gov/ocr.json').json()
+    ocr_available = http.get('https://chroniclingamerica.loc.gov/ocr.json').json()
 
     batch_to_url = {}
     for ocr in ocr_available['ocr']:
@@ -151,21 +152,73 @@ def restrict_to_ocred_batches():
     yay = 0
     boo = 0
     final_batches = []
+    final_urls = []
     for batch in all_batches_needed:
         if batch_to_url.get(batch):
             yay += 1
             final_batches.append(batch)
+            final_urls.append(batch_to_url[batch])
         else:
             boo += 1
             print(f'not found for {batch}')
 
     print(f'found {yay}, could not find {boo}')
 
+    return final_batches, final_urls
+
 
 try:
     with open('chronam_batches_needed', 'rb') as f:
         final_batches = pickle.load(f)
+    with open('chronam_urls_needed', 'rb') as f:
+        final_urls = pickle.load(f)
 except:
-    final_batches = restrict_to_ocred_batches()
+    final_batches, final_urls = restrict_to_ocred_batches()
     with open('chronam_batches_needed', 'wb') as f:
         pickle.dump(final_batches, f)
+    with open('chronam_urls_needed', 'wb') as f:
+        pickle.dump(final_urls, f)
+
+# ~*~*~*~*~*~*~*~*~*~*~*~*~ fetch batches ~*~*~*~*~*~*~*~*~*~*~*~*~ #
+tmpzip = 'tmpzip.zip'
+newspaper_dir = 'newspapers'
+try:
+    os.mkdir(newspaper_dir)
+except FileExistsError:
+    pass
+
+# The endpoint is exclusive, so this matches dates from 1863 through 1877.
+goal_dates = range(1863, 1878)
+
+batch_to_lccn = defaultdict(set)
+for lccn, batchlist in lccn_to_batch.items():
+    # We don't need the list comprehension output -- it's just a quick way to
+    # handle inverting this data structure. We care about the final
+    # batch_to_lccn.
+    [batch_to_lccn[batch].add(lccn) for batch in batchlist]
+
+batch_match = re.compile(r'/([\w_]+).tar.bz2')
+
+for url in final_urls:
+    print(f'Downloading {url}...')
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        with open(tmpzip, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+    batch_name = batch_match.search(url).group(1)
+    output_dirs = batch_to_lccn[batch_name]
+
+    print(f'....Extracting {url}')
+    subprocess.call(f'tar -xf {tmpzip} -C {newspaper_dir}', shell=True)
+
+    print(f'....Removing extraneous directories')
+    for output_dir in output_dirs:
+        for subdir in os.listdir(os.path.join(newspaper_dir, output_dir)):
+            if int(subdir) not in goal_dates:
+                shutil.rmtree(os.path.join(newspaper_dir, output_dir, subdir))
+
+    subprocess.call(f'rm {tmpzip}', shell=True)
+
+# FOR NOW we will keep all of the ed/seq separate and not try to unite issues
