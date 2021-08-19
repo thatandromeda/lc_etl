@@ -8,7 +8,7 @@ import time
 from gensim.models.doc2vec import Doc2Vec
 from gensim.models.callbacks import CallbackAny2Vec
 
-from slurp import slurp
+from queries import slurp
 
 import logging
 

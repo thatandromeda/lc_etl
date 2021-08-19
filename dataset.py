@@ -1,64 +1,57 @@
-import sys
-from urllib.parse import urlparse
-
 from locr import Fetcher
-import requests
 
-from slurp import paginate_search, filter_results, filenamify
+from lc_items import slurp_items
+from lc_collections import slurp_collections
+from newspapers import slurp_newspapers
+from queries import slurp
 
-# collections = ["https://www.loc.gov/collections/abraham-lincoln-papers/",
-#                "https://www.loc.gov/collections/salmon-p-chase-papers/",
-#                "https://www.loc.gov/collections/james-a-garfield-papers/",
-#                "https://www.loc.gov/collections/andrew-johnson-papers/",
-#                "https://www.loc.gov/collections/frederick-douglass-papers/",
-#                "https://www.loc.gov/collections/thaddeus-stevens-papers/",
-#                "https://www.loc.gov/collections/e-b-washburne-papers/",
-#                "https://www.loc.gov/collections/anna-e-dickinson-papers/",
-#                "https://www.loc.gov/collections/alexander-hamilton-stephens-papers/",
-#                "https://www.loc.gov/collections/ulysses-s-grant-papers/",
-#                "https://www.loc.gov/collections/philip-henry-sheridan-papers/",
-#                "https://www.loc.gov/collections/frederick-douglass-papers/",
-#                "https://www.loc.gov/collections/edwin-mcmasters-stanton-papers/",
-#                "https://www.loc.gov/collections/slave-narratives-from-the-federal-writers-project-1936-to-1938/"]
+# In need of further processing:
+# https://www.loc.gov/collections/selected-digitized-books/?dates=1863/1877&fa=language:english%7Conline-format:online+text%7Clocation:united+states
 
-collections = ["https://www.loc.gov/collections/slave-narratives-from-the-federal-writers-project-1936-to-1938/"]
+collections = [
+    "https://www.loc.gov/collections/abraham-lincoln-papers/",
+    "https://www.loc.gov/collections/slave-narratives-from-the-federal-writers-project-1936-to-1938/"
+]
 
-other_collections = ["https://www.loc.gov/item/29009286/",
-                     "https://www.loc.gov/search/?fa=contributor:american+colonization+society"]
+date_filtered_collections = [
+    # supreme court opinions
+    "https://www.loc.gov/collections/united-states-reports/",
+    # this is https://memory.loc.gov/ammem/amlaw/lwsl.html
+    "https://www.loc.gov/collections/united-states-statutes-at-large/"
+]
 
+queries = [
+    "https://www.loc.gov/search/?fa=contributor:american+colonization+society",
+    "https://www.loc.gov/collections/broadsides-and-other-printed-ephemera/?q=reconstruction+OR+%22ex-slave%22",
+    "https://www.loc.gov/collections/broadsides-and-other-printed-ephemera/?q=colored+OR+negro+OR+South+OR+Congress&dates=1863/1877",
+    "https://www.loc.gov/search/?fa=subject:african-american+history|online-format:online+text&dates=1863/1877",
+    "https://www.loc.gov/search/?fa=subject:african+american|online-format:online+text&dates=1863/1877",
+    "https://www.loc.gov/search/?fa=subject:african+american+history|online-format:online+text&dates=1863/1877",
+    "https://www.loc.gov/search/?fa=subject:black+history|online-format:online+text&dates=1863/1877",
+    "https://www.loc.gov/search/?fa=subject:reconstruction|online-format:online+text",
+    "https://www.loc.gov/search/?fa=partof:american+memory|online-format:online+text&dates=1863/1877",
+    "https://www.loc.gov/collections/rare-book-selections/?fa=language:english|online-format:online+text|location:united+states&dates=1863/1877",
+    "https://www.loc.gov/search/?dates=1863/1877&fa=online-format:online+text%7Cpartof:rare+book+and+special+collections+division",
+    ]
 
-# OH MY GOD the Lincoln ones have IIIF URLs but they are found under storage-services URLs
-# auuuuuugh
-# ugh. gonna have to redo Fetcher so it makes an intelligent guess, but then iterates through everything, huh
-# or turn it into a web scraper
-# no! look for [resources][fulltext_file]...use that if you can
-# and then use resources to choose a fetcher with the right parse_text option
-found = 0
-total_words = 0
-total_docs = 0
-for base_url in collections:
-    last_found = found
-    last_words = total_words
-    url = f'{base_url}search/?fa=online-format:online+text&fo=json'
-    for response in paginate_search(url):
-        results = filter_results(response)
-        for result in results:
-            total_docs += 1
-            try:
-                fetcher = Fetcher(result)
+items = ["https://www.loc.gov/item/29009286/",
+         "https://www.loc.gov/item/rbpe.18704800/",
+         "https://www.loc.gov/item/rbpe.24001000/"]
 
-                text = fetcher.full_text()
-                if text:
-                    found += 1
-                    total_words += len(text.split(' '))
+print('Fetching data from collections...')
+slurp_collections(collections)
+slurp_collections(date_filtered_collections, filter_for_dates=True)
 
-                    with open(filenamify(result), 'w') as f:
-                        f.write(text)
-            except:
-                import pdb; pdb.set_trace()
-                print(f'No dice for {result["id"]}')
+print('Fetching data from searches...')
+for query in queries:
+    print(query)
+    slurp(url=query)
 
-    print(f'for collection {base_url}...')
-    print(f'{found-last_found} documents found; {total_words-last_words} words')
+# The first item in the list has fulltext but it's not being fetched -- we're
+# gonna need to add a fetcher. Hold off on that until we can consult logs for
+# all the things not fetched.
+print('Fetching data from items...')
+slurp_items(items)
 
-print(f'{found} documents found of {total_docs} total; {total_words} total words')
+print('Fetching data from ChronAm...')
+slurp_newspapers()

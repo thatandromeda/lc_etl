@@ -1,0 +1,44 @@
+import logging
+from urllib.parse import urlparse
+
+from locr import Fetcher
+import requests
+
+from queries import paginate_search, filter_results, filenamify
+
+logging.basicConfig(filename=f'notfound.log')
+
+def slurp_collections(collections, filter_for_dates=False):
+    found = 0
+    total_words = 0
+    total_docs = 0
+    for base_url in collections:
+        print(f'PROCESSING: {base_url}')
+        last_found = found
+        last_words = total_words
+
+        url = f'{base_url}search/?fa=online-format:online+text&fo=json'
+        if filter_for_dates:
+            url += '&dates=1863/1877'
+
+        for response in paginate_search(url):
+            results = filter_results(response)
+            for result in results:
+                total_docs += 1
+                try:
+                    fetcher = Fetcher(result)
+
+                    text = fetcher.full_text()
+                    if text:
+                        found += 1
+                        total_words += len(text.split(' '))
+
+                        with open(filenamify(result), 'w') as f:
+                            f.write(text)
+                except:
+                    logging.warning(f'WAT: Could not locate text for {result["id"]}')
+
+        print(f'for collection {base_url}...')
+        print(f'{found-last_found} documents found; {total_words-last_words} words')
+
+    print(f'{found} documents found of {total_docs} total; {total_words} total words')

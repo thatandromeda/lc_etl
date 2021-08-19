@@ -1,7 +1,9 @@
 from collections import defaultdict
+import json
 import logging
+import subprocess
 import time
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 import requests
 
@@ -30,7 +32,7 @@ class LocUrl(object):
     def __init__(self, **kwargs):
         super(LocUrl, self).__init__()
         self.collection = kwargs.get('collection')
-        self.query = kwargs.get('q')
+        self.query = kwargs.get('q') or kwargs.get('query')
         self.subject = kwargs.get('subject')
         self.identifier = kwargs.get('identifier')
         self.format = kwargs.get('format')
@@ -94,8 +96,11 @@ def paginate_search(url):
     http = http_adapter()
 
     while next_page:
-        current_url = f'{url}&sp={page}'
-        response = http.get(current_url, timeout=TIMEOUT).json()
+        current_url = f'{url}&sp={page}&c={PAGE_LENGTH}'
+        try:
+            response = http.get(current_url, timeout=TIMEOUT).json()
+        except json.decoder.JSONDecodeError as e:
+            logging.exception(f'Could not decode {current_url}')
 
         page += 1
         next_page = response['pagination']['next']  # Will be null when done
@@ -112,10 +117,37 @@ def filenamify(result):
     return f'results/{name[-1]}'
 
 
+def jsonify(url):
+    parsed_url = urlparse(url)
+    if 'fo=json' not in parsed_url.query:
+        # I can't believe python URL manipulation is this awful, but it is
+        querydict = parse_qs(parsed_url.query)
+        querydict.update({'fo': ['json']})
+        new_url = [attr for attr in parsed_url]
+        new_url[4] = urlencode(querydict, doseq=True)
+        return urlunparse(new_url)
+    else:
+        return url
+
+
+# By recording the subjects of processed items, we'll be able to use unix
+# utilities later to see what the most common subjects are, and consider
+# expanding our search accordingly.
+def record_subjects(result):
+    subjects_file = 'subjects.txt'
+    subprocess.call(f'touch {subjects_file}', shell=True)
+
+    with open(subjects_file, 'a') as f:
+        for subject in (result.get('subject') or []):
+            f.write(f'{subject}\n')
+
+
 def slurp(**kwargs):
     '''
-    Given a query parameters matching the LocUrl options, queries the Library of
-    Congress API for text documents matching that term.
+    Queries the Library of Congress for text documents matching an API query.
+    Can take the query URL directly (with a `url` argument), or will construct
+    it from provided kwargs (see LocUrl for details). Provided URLs do not need
+    to specify `fo=json`; this will be added if needed.
 
     When run with as_iterator=True, will yield the documents one by one (along
     with their LOC ID), as well as collecting summary statistics. When run with
@@ -123,8 +155,10 @@ def slurp(**kwargs):
     '''
     logging.basicConfig(filename=f'slurp_{timestamp}.log')
 
-    kwargs['q'] = kwargs['query']
-    url = LocUrl(**kwargs).construct()
+    try:
+        url = jsonify(kwargs['url'])
+    except KeyError:
+        url = LocUrl(**kwargs).construct()
     stats = defaultdict(int)
 
     progress = 0
@@ -132,6 +166,7 @@ def slurp(**kwargs):
         results = filter_results(response)
         print(f'Processing {len(results)} usable results...')
         for result in results:
+            record_subjects(result)
             stats['processed'] += 1
             if stats['processed'] % 100 == 0:
                 print(f'...{stats["processed"]} processed')

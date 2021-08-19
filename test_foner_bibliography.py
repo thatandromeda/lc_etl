@@ -1,4 +1,4 @@
-from slurp import slurp, LocUrl
+from queries import slurp, LocUrl
 
 # Update slurp to take a url, and build_url to be more thoughtful about what
 # can be built.
