@@ -6,14 +6,12 @@ import requests
 
 from queries import paginate_search, filter_results, filenamify
 
-logging.basicConfig(filename=f'notfound.log')
-
 def slurp_collections(collections, filter_for_dates=False):
     found = 0
     total_words = 0
     total_docs = 0
     for base_url in collections:
-        print(f'PROCESSING: {base_url}')
+        logging.info(f'PROCESSING: {base_url}')
         last_found = found
         last_words = total_words
 
@@ -38,7 +36,7 @@ def slurp_collections(collections, filter_for_dates=False):
                 except:
                     logging.warning(f'WAT: Could not locate text for {result["id"]}')
 
-        print(f'for collection {base_url}...')
-        print(f'{found-last_found} documents found; {total_words-last_words} words')
+        logging.info(f'for collection {base_url}...')
+        logging.info(f'{found-last_found} documents found; {total_words-last_words} words')
 
-    print(f'{found} documents found of {total_docs} total; {total_words} total words')
+    logging.info(f'{found} documents found of {total_docs} total; {total_words} total words')

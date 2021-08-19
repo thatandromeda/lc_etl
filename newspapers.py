@@ -1,4 +1,5 @@
 from collections import defaultdict
+import logging
 import os
 import pickle
 import re
@@ -46,7 +47,7 @@ def create_lccn_to_batch():
             lccns = batch['lccns']
             for lccn in lccns:
                 retval[lccn].add(batch['name'])
-        print(f'{iteration}: about to process {batches["next"]}')
+        logging.info(f'{iteration}: about to process {batches["next"]}')
         iteration += 1
         batches = http.get(batches['next']).json()
         sleep(0.2)
@@ -85,7 +86,7 @@ def check_all_reconstruction_era_papers():
             import pdb; pdb.set_trace()
             raise
 
-        print(f'page {page} processed')
+        logging.info(f'page {page} processed')
         more_to_go = (response['endIndex'] < response['totalItems'])
         page += 1
 
@@ -126,14 +127,14 @@ def identify_batches_from_titles():
                 available_newspapers.add(newspaper)
                 all_batches_needed.update(batches)
 
-    print(f'{len(available_newspapers)} newspapers found of {len(newspapers_list)} original titles')
-    print(f'{len(all_batches_needed)} total batches needed')
+    logging.info(f'{len(available_newspapers)} newspapers found of {len(newspapers_list)} original titles')
+    logging.info(f'{len(all_batches_needed)} total batches needed')
 
     return all_batches_needed
 
 
 def identify_batches_from_lccns():
-    print('mapping lccns to batches...')
+    logging.info('mapping lccns to batches...')
     all_batches_needed = set()
     available_lccns = set()
     all_lccns = get_all_lccns()
@@ -144,8 +145,8 @@ def identify_batches_from_lccns():
             available_lccns.add(lccn)
             all_batches_needed.update(batches)
 
-    print(f'{len(available_lccns)} newspapers found of {len(all_lccns)} original titles')
-    print(f'{len(all_batches_needed)} total batches needed')
+    logging.info(f'{len(available_lccns)} newspapers found of {len(all_lccns)} original titles')
+    logging.info(f'{len(all_batches_needed)} total batches needed')
 
     return all_batches_needed
 
@@ -171,9 +172,9 @@ def restrict_to_ocred_batches():
             final_urls.append(batch_to_url[batch])
         else:
             boo += 1
-            print(f'not found for {batch}')
+            logging.info(f'not found for {batch}')
 
-    print(f'found {yay}, could not find {boo}')
+    logging.info(f'found {yay}, could not find {boo}')
 
     return final_batches, final_urls
 
@@ -225,7 +226,7 @@ def slurp_newspapers(goal_dates=range(1863, 1878)):
     batch_match = re.compile(r'/([\w_]+).tar.bz2')
 
     for url in final_urls:
-        print(f'Downloading {url}...')
+        logging.info(f'Downloading {url}...')
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
             with open(tmpzip, 'wb') as f:
@@ -235,10 +236,10 @@ def slurp_newspapers(goal_dates=range(1863, 1878)):
         batch_name = batch_match.search(url).group(1)
         output_dirs = batch_to_lccn[batch_name]
 
-        print(f'....Extracting {url}')
+        logging.info(f'....Extracting {url}')
         subprocess.call(f'tar -xf {tmpzip} -C {newspaper_dir}', shell=True)
 
-        print(f'....Removing extraneous directories')
+        logging.info(f'....Removing extraneous directories')
         for output_dir in output_dirs:
             for subdir in os.listdir(os.path.join(newspaper_dir, output_dir)):
                 if int(subdir) not in goal_dates:

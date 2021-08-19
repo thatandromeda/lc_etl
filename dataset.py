@@ -1,3 +1,5 @@
+import logging
+
 from locr import Fetcher
 
 from lc_items import slurp_items
@@ -8,6 +10,9 @@ from queries import slurp
 # In need of further processing:
 # https://www.loc.gov/collections/selected-digitized-books/?dates=1863/1877&fa=language:english%7Conline-format:online+text%7Clocation:united+states
 
+logging.basicConfig(filename='slurp.log',
+                    format="%(asctime)s:%(levelname)s:%(message)s",
+                    level=logging.INFO)
 collections = [
     "https://www.loc.gov/collections/abraham-lincoln-papers/",
     "https://www.loc.gov/collections/slave-narratives-from-the-federal-writers-project-1936-to-1938/"
@@ -38,20 +43,20 @@ items = ["https://www.loc.gov/item/29009286/",
          "https://www.loc.gov/item/rbpe.18704800/",
          "https://www.loc.gov/item/rbpe.24001000/"]
 
-print('Fetching data from collections...')
+logging.info('Fetching data from collections...')
 slurp_collections(collections)
 slurp_collections(date_filtered_collections, filter_for_dates=True)
 
-print('Fetching data from searches...')
+logging.info('Fetching data from searches...')
 for query in queries:
-    print(query)
+    logging.info(query)
     slurp(url=query)
 
 # The first item in the list has fulltext but it's not being fetched -- we're
 # gonna need to add a fetcher. Hold off on that until we can consult logs for
 # all the things not fetched.
-print('Fetching data from items...')
+logging.info('Fetching data from items...')
 slurp_items(items)
 
-print('Fetching data from ChronAm...')
+logging.info('Fetching data from ChronAm...')
 slurp_newspapers()

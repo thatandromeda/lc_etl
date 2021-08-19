@@ -28,15 +28,15 @@ class EpochLogger(CallbackAny2Vec):
 
     def on_epoch_begin(self, model):
         self.time = time.time()
-        print("Epoch #{} start".format(self.epoch))
+        logging.info("Epoch #{} start".format(self.epoch))
 
     def on_epoch_end(self, model):
         seconds = round(time.time() - self.time, 1)
         # It would be great to display the loss here, but loss isn't actually
         # implemented on Doc2Vec:
         # https://github.com/RaRe-Technologies/gensim/issues/2983
-        print(f'Epoch {self.epoch} trained in {seconds} seconds')
-        print(f'Loss after epoch {self.epoch}: {loss}')
+        logging.info(f'Epoch {self.epoch} trained in {seconds} seconds')
+        logging.info(f'Loss after epoch {self.epoch}: {loss}')
         self.epoch += 1
 
 epoch_logger = EpochLogger()

@@ -5,8 +5,6 @@ from locr import Fetcher
 
 from queries import slurp, http_adapter, jsonify, filenamify, record_subjects
 
-logging.basicConfig(filename=f'notfound.log')
-
 def slurp_items(items):
     """
     Takes a list of item URLs and writes the item full_text, if available.
@@ -17,7 +15,7 @@ def slurp_items(items):
     http = http_adapter()
 
     for item in items:
-        print(f'PROCESSING: {item}')
+        logging.info(f'PROCESSING: {item}')
         url = jsonify(item)
         response = http.get(url).json()
         result = response['item']
@@ -26,7 +24,7 @@ def slurp_items(items):
         record_subjects(result)
 
         if text:
-            print(filenamify(result))
+            logging.info(filenamify(result))
             with open(filenamify(result), 'w') as f:
                 f.write(text)
         else:

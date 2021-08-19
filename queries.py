@@ -16,6 +16,8 @@ timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 PAGE_LENGTH = 500
 TIMEOUT = 3
 
+subprocess.call('mkdir results', shell=True)
+
 def http_adapter():
     # Get around intermittent 500s or whatever.
     retry = requests.packages.urllib3.util.retry.Retry(
@@ -155,8 +157,6 @@ def slurp(**kwargs):
     with their LOC ID), as well as collecting summary statistics. When run with
     as_iterator=False (the default), will only collect summary statistics.
     '''
-    logging.basicConfig(filename=f'slurp_{timestamp}.log')
-
     try:
         url = jsonify(kwargs['url'])
     except KeyError:
@@ -166,12 +166,12 @@ def slurp(**kwargs):
     progress = 0
     for response in paginate_search(url):
         results = filter_results(response)
-        print(f'Processing {len(results)} usable results...')
+        logging.info(f'Processing {len(results)} usable results...')
         for result in results:
             record_subjects(result)
             stats['processed'] += 1
             if stats['processed'] % 100 == 0:
-                print(f'...{stats["processed"]} processed')
+                logging.info(f'...{stats["processed"]} processed')
             try:
                 text = Fetcher(result).full_text()
                 if text:
@@ -193,11 +193,11 @@ def slurp(**kwargs):
                 stats['failed'] += 1
 
     if shutil.disk_usage('/')[-1] < 1000000000:
-        print('Quitting for disk space!')
-        print(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
+        logging.info('Quitting for disk space!')
+        logging.info(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
         sys.exit()
 
-    print(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
+    logging.info(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
 
 
 if __name__ == '__main__':

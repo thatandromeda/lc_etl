@@ -1,3 +1,5 @@
+import logging
+
 from queries import slurp, LocUrl
 
 # Update slurp to take a url, and build_url to be more thoughtful about what
@@ -56,22 +58,22 @@ papers_list = ["American Colonization Society", "Blair Family",
 # but not in an easy way
 # and then batches are your bulk download
 # for newspaper in newspapers_list:
-#     print(f'NEWSPAPER: {newspaper}')
+#     logging.info(f'NEWSPAPER: {newspaper}')
 #     slurp(collection='chronicling america', title=newspaper)
 # oooh but https://chroniclingamerica.loc.gov/newspapers.txt -- a list! Contains "Persistent Link | State | Title | LCCN | OCLC | ISSN | No. of Issues | First Issue Date | Last Issue Date | More Info"
 # these are digitized
 # https://chroniclingamerica.loc.gov/search/pages/results/?lccn=sn89053729&dateFilterType=yearRange&date1=1865&date2=1877
 for title in titles_list:
-    print(f'TITLE: {title}')
+    logging.info(f'TITLE: {title}')
     slurp(query=title)
 
 
 for collection in collections_list:
-    print(f'COLLECTION: {collection}')
+    logging.info(f'COLLECTION: {collection}')
     slurp(collection=collection)
 
 # This is sometimes yielding things of the form {$url: {'full_text': 'blah', 'etc': 'foo'}}
 # %90 this does not just return american colonization society papers, it's an or, not an and, i hate this
 for paper in papers_list:
-    print(f'PAPER: {paper}')
+    logging.info(f'PAPER: {paper}')
     slurp(query=f'{paper} papers')
