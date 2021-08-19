@@ -13,7 +13,7 @@ from locr import Fetcher, UnknownIdentifier
 
 timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 
-PAGE_LENGTH = 1000  # LOC API team thinks this is the maximum allowable
+PAGE_LENGTH = 500
 TIMEOUT = 3
 
 def http_adapter():
