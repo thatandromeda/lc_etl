@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from time import sleep
 
-from queries import http_adapter
+from queries import http_adapter, check_for_disk_space
 
 newspapers_list = ["American Freedman", "Annual Cyclopedia",
     "Atlanta Constitution", "Atlantic Monthly", "Augusta Loyal Georgian",
@@ -246,6 +246,7 @@ def slurp_newspapers(goal_dates=range(1863, 1878)):
                     shutil.rmtree(os.path.join(newspaper_dir, output_dir, subdir))
 
         subprocess.call(f'rm {tmpzip}', shell=True)
+        check_for_disk_space()
 
 # The above works BUT it eats your entire disk, so cloud it and/or make it a
 # streaming thing. Also you might want to pick a subset because class imbalance.

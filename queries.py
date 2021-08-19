@@ -146,6 +146,13 @@ def record_subjects(result):
             f.write(f'{subject}\n')
 
 
+def check_for_disk_space():
+    if shutil.disk_usage('/')[-1] < 1000000000:
+        logging.info('Quitting for disk space!')
+        logging.info(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
+        sys.exit()
+
+
 def slurp(**kwargs):
     '''
     Queries the Library of Congress for text documents matching an API query.
@@ -192,11 +199,7 @@ def slurp(**kwargs):
                 logging.exception(f'BAD: Failed on {result["id"]} with image_url {result["image_url"]}')
                 stats['failed'] += 1
 
-    if shutil.disk_usage('/')[-1] < 1000000000:
-        logging.info('Quitting for disk space!')
-        logging.info(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
-        sys.exit()
-
+        check_for_disk_space()
     logging.info(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
 
 
