@@ -1,7 +1,9 @@
 from collections import defaultdict
 import json
 import logging
+import shutil
 import subprocess
+import sys
 import time
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
@@ -189,6 +191,11 @@ def slurp(**kwargs):
             except Exception as err:
                 logging.exception(f'BAD: Failed on {result["id"]} with image_url {result["image_url"]}')
                 stats['failed'] += 1
+
+    if shutil.disk_usage('/')[-1] < 1000000000:
+        print('Quitting for disk space!')
+        print(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
+        sys.exit()
 
     print(f'{stats["processed"]} processed, {stats["found"]} texts found with {stats["total_words"]} total words, {stats["not_found"]} not found, {stats["failed"]} failed, of {response["pagination"]["of"]} total')
 
