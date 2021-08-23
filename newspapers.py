@@ -83,8 +83,8 @@ def check_all_reconstruction_era_papers():
             lccns = [chronam_id.match(item['id']).group(1) for item in response['items']]
             all_lccns.update(lccns)
         except Exception as e:
-            import pdb; pdb.set_trace()
-            raise
+            # import pdb; pdb.set_trace()
+            logging.exception(f'Failed to fetch from {url}')
 
         logging.info(f'page {page} processed')
         more_to_go = (response['endIndex'] < response['totalItems'])
@@ -179,7 +179,7 @@ def restrict_to_ocred_batches():
     return final_batches, final_urls
 
 
-def identify_chronam_downloads(arg):
+def identify_chronam_downloads():
     try:
         with open('chronam_batches_needed', 'rb') as f:
             final_batches = pickle.load(f)
@@ -260,3 +260,6 @@ def slurp_newspapers(goal_dates=range(1863, 1878)):
 # FOR NOW we will keep all of the ed/seq separate and not try to unite issues
 # Similarly we will not try to handle the same lccn appearing in more than one
 # batch -- implicitly we end up with the latest batch being available here.
+
+if __name__ == '__main__':
+    slurp_newspapers()

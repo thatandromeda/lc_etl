@@ -105,6 +105,11 @@ def paginate_search(url):
             response = http.get(current_url, timeout=TIMEOUT).json()
         except json.decoder.JSONDecodeError as e:
             logging.exception(f'Could not decode {current_url}')
+        except requests.exceptions.ConnectionError:
+            logging.exception(f'Timeout for {current_url}; waiting')
+            time.sleep(180)
+            # this is no longer guaranteed to finish
+            continue
 
         page += 1
         next_page = response['pagination']['next']  # Will be null when done
