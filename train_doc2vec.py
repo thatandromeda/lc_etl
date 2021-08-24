@@ -1,25 +1,24 @@
-from argparse import ArgumentParser
+from collections import defaultdict
 import logging
-import os
-import pickle
-import sys
+import glob
+import re
 import time
 
-from gensim.models.doc2vec import Doc2Vec
+from gensim import corpora
+from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.models.callbacks import CallbackAny2Vec
-
-from queries import slurp
+from gensim.parsing.preprocessing import remove_stopwords
 
 import logging
 
-parser = ArgumentParser()
-parser.add_argument('--load', help='filename of pickled corpus to load')
-options = parser.parse_args()
-
+output_dir = 'gensim_output'
 timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
+
+# Words must appear at least this often in the corpus to be used in training.
+MIN_FREQUENCY = 5
 
 class EpochLogger(CallbackAny2Vec):
     def __init__(self):
@@ -41,6 +40,76 @@ class EpochLogger(CallbackAny2Vec):
 
 epoch_logger = EpochLogger()
 
+
+# Iterates through all available LoC files, yielding (document, tag).
+# Document is unprocessed -- a straight read of the file.
+class LocDiskIterator:
+    def __init__(self):
+        super(LocDiskIterator, self).__init__()
+        self.newspaper_path = re.compile('newspapers/([\w/-]+)/ocr.txt')
+
+    def __iter__(self):
+        # First do newspapers
+        for newspaper in glob.iglob('newspapers/**/*.txt', recursive=True):
+            # Expected path format: 'newspapers/lccn/yyyy/mm/dd/ed-x/seq-x/ocr.txt'
+            tag = self.newspaper_path.match(newspaper).group(1)
+            with open(newspaper, 'r') as f:
+                document = f.read()
+
+            yield (document, tag)
+
+        # Then do everything else
+        for result in glob.iglob('results/*'):
+            # Expected path: 'results/lccn'
+            tag = result.split('/')[-1]
+            with open(result, 'r') as f:
+                document = f.read()
+
+            yield (document, tag)
+
+
+# Iterates through all available LoC files, yielding TaggedDocuments.
+class LocCorpus:
+    def __iter__(self):
+        for document, tag in LocDiskIterator():
+            yield TaggedDocument(preprocess(document), [tag])
+
+
+# Most basic possible stopword filtering. It's encapsulated into a function
+# to make it easy to swap out later.
+def filter_stopwords(text):
+    return remove_stopwords(text)
+
+
+# Most basic possible tokenizing. It's encapsulated into a function
+# to make it easy to swap out later.
+def tokenize(text):
+    return text.lower().split(' ')
+
+
+# Encapsulate all our preprocessing steps, so we can easily swap out the whole
+# pipeline.
+def preprocess(text):
+    text = filter_stopwords(text)
+    text = tokenize(text)
+    return text
+
+
+def make_dictionary():
+    frequency = defaultdict(int)
+    for text, _ in LocDiskIterator():
+        text = preprocess(text)
+        for token in text:
+            frequency[token] += 1
+
+    # This will have millions of items. Hopefully that's cool.
+    filtered_freq = {k: v for k, v in frequency.items() if v > MIN_FREQUENCY }
+    dictionary = corpora.Dictionary(filtered_freq)
+    dictionary.save('loc_{timestamp}.dict')
+
+    return dictionary
+
+
 def read_document(document, tokens_only=False):
     doc_id, text = document
     tokens = gensim.utils.simple_preprocess(text)
@@ -54,33 +123,7 @@ def read_document(document, tokens_only=False):
 # train_corpus = list(read_document(lee_train_file))
 # test_corpus = list(read_document(lee_test_file, tokens_only=True))
 
-def build_corpus():
-    corpus = []
-    for document in slurp(as_iterator=True):
-        if not document[1]:     # don't process empty documents
-            continue
-
-        corpus.append(read_document(document))
-
-        # I keep getting timeout errors. Let's checkpoint this.
-        if len(corpus) % 20 == 0:
-            with open(f'{output_dir}/corpus_{timestamp}_{len(corpus)}.pkl', 'wb') as f:
-                pickle.dump(corpus, f)
-
-            prev_checkpoint = f'{output_dir}/corpus_{timestamp}_{len(corpus) - 20}.pkl'
-            if os.path.exists(prev_checkpoint):
-                os.remove(prev_checkpoint)
-
-    return corpus
-
-loadfile = options.load
-if loadfile:
-    corpus = pickle.load(open(loadfile, 'rb'))
-else:
-    corpus = build_corpus()
-    with open(f'{output_dir}/corpus_{timestamp}.pkl', 'wb') as f:
-        pickle.dump(corpus, f)
-
+corpus = LocCorpus()
 model = Doc2Vec(vector_size=50, min_count=2, epochs=40)
 model.build_vocab(corpus)
 model.train(corpus,
