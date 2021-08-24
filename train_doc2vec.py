@@ -123,10 +123,11 @@ def read_document(document, tokens_only=False):
 # train_corpus = list(read_document(lee_train_file))
 # test_corpus = list(read_document(lee_test_file, tokens_only=True))
 
-corpus = LocCorpus()
 model = Doc2Vec(vector_size=50, min_count=2, epochs=40)
-model.build_vocab(corpus)
-model.train(corpus,
+model.build_vocab(LocCorpus())
+# Must re-initialize the corpus so that the iterator hasn't run off the end of
+# it!
+model.train(LocCorpus(),
             total_examples=model.corpus_count,
             epochs=model.epochs,
             callbacks=[epoch_logger])
