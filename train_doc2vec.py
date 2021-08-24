@@ -123,13 +123,16 @@ def read_document(document, tokens_only=False):
 # train_corpus = list(read_document(lee_train_file))
 # test_corpus = list(read_document(lee_test_file, tokens_only=True))
 
-model = Doc2Vec(vector_size=50, min_count=2, epochs=40)
-model.build_vocab(LocCorpus())
-# Must re-initialize the corpus so that the iterator hasn't run off the end of
-# it!
-model.train(LocCorpus(),
-            total_examples=model.corpus_count,
-            epochs=model.epochs,
-            callbacks=[epoch_logger])
-model.save(f'{output_dir}/model_{timestamp}')
-# load with model = gensim.models.Doc2Vec.load("path/to/model")
+# Although I will run this from the command line, I need things to be importable
+# into the shell for debugging.
+if __name__ == '__main__':
+    model = Doc2Vec(vector_size=50, min_count=2, epochs=40)
+    model.build_vocab(LocCorpus())
+    # Must re-initialize the corpus so that the iterator hasn't run off the end of
+    # it!
+    model.train(LocCorpus(),
+                total_examples=model.corpus_count,
+                epochs=model.epochs,
+                callbacks=[epoch_logger])
+    model.save(f'{output_dir}/model_{timestamp}')
+    # load with model = gensim.models.Doc2Vec.load("path/to/model")
