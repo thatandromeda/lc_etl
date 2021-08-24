@@ -32,11 +32,11 @@ class EpochLogger(CallbackAny2Vec):
 
     def on_epoch_end(self, model):
         seconds = round(time.time() - self.time, 1)
-        # It would be great to display the loss here, but loss isn't actually
-        # implemented on Doc2Vec:
+        # Loss in Doc2Vec is actually super dodgy -- not sure what
+        # get_latest_training_loss reports -- but it's in the API.
         # https://github.com/RaRe-Technologies/gensim/issues/2983
         logging.info(f'Epoch {self.epoch} trained in {seconds} seconds')
-        logging.info(f'Loss after epoch {self.epoch}: {loss}')
+        logging.info(f'Loss after epoch {self.epoch}: {model.get_latest_training_loss()}')
         self.epoch += 1
 
 epoch_logger = EpochLogger()
