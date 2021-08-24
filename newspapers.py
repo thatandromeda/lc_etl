@@ -246,6 +246,8 @@ def slurp_newspapers(goal_dates=range(1863, 1878)):
                     shutil.rmtree(os.path.join(newspaper_dir, output_dir, subdir))
 
         subprocess.call(f'rm {tmpzip}', shell=True)
+        # We get everything in both .txt and .xml, but we only want .txt.
+        subprocess.call('find newspapers/ -type f -name '*.xml' -delete', shell=True)
         check_for_disk_space()
 
 # The above works BUT it eats your entire disk, so cloud it and/or make it a
