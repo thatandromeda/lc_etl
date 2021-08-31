@@ -17,6 +17,18 @@ logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
 
+# TODO
+# definitely want some kind of stemming, to deal with things like acre/acres,
+# which are otherwise quite similar
+# also you're going to need to remove punctuation (not hyphens, which are
+# useful, but definitely commas, probably more)
+# a pass for multiword tokens, somehow??
+# introspect dictionary to see a good min-frequency setting by looking at
+# frequency of OCR misspellings. I might actually want a version trained on
+# these to use as an OCR-Levenshtein type source!-- it's useful for the search,
+# when I get to that, as a search for cotton should absolutely find things like
+# "cottou". But it is maybe not so useful for grouping documents.
+
 # Words must appear at least this often in the corpus to be used in training.
 MIN_FREQUENCY = 5
 

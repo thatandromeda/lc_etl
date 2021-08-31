@@ -6,3 +6,7 @@ gensim_outputs/
 results*/
 newspapers/
 *.zip
+*.feather
+nohup.out
+subjects.txt
+viz/
