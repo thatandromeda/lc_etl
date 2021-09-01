@@ -9,3 +9,4 @@ newspapers/
 *.feather
 nohup.out
 subjects.txt
+results_metadata.txt
