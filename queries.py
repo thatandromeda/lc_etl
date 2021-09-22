@@ -11,7 +11,9 @@ import requests
 
 from locr import Fetcher, UnknownIdentifier
 
-timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+def make_timestamp():
+    return time.strftime('%Y%m%d_%H%M%S', time.localtime())
+
 
 PAGE_LENGTH = 500
 TIMEOUT = 3

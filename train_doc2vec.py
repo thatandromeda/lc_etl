@@ -9,10 +9,10 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.parsing.preprocessing import remove_stopwords
 
-import logging
+from queries import make_timestamp
 
 output_dir = 'gensim_output'
-timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+timestamp = make_timestamp()
 logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)

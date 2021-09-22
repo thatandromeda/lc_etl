@@ -23,8 +23,8 @@ with open('viz/labeled_model.csv', 'w', newline='') as f:
                 raw_item_metadata = metadata[identifier.strip()]
                 raw_item_metadata = [str(x) for x in list(raw_item_metadata.values())]
             except KeyError as e:
-                # ChronAm items aren't in this file yet
-                raw_item_metadata = [''] * (len(header) - 2)
+                # Sometimes we didn't successfully fetch the metadata.
+                continue
 
             item_metadata = coordinate.strip().split(',') + raw_item_metadata
 

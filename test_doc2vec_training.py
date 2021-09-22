@@ -8,7 +8,7 @@ import time
 from gensim.models.doc2vec import Doc2Vec
 from gensim.models.callbacks import CallbackAny2Vec
 
-from queries import slurp
+from queries import slurp, make_timestamp
 
 import logging
 
@@ -16,7 +16,7 @@ parser = ArgumentParser()
 parser.add_argument('--load', help='filename of pickled corpus to load')
 options = parser.parse_args()
 
-timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+timestamp = make_timestamp()
 logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
