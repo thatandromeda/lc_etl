@@ -106,7 +106,7 @@ def add_newspaper_info(metadata, idx):
     return metadata
 
 
-def add_results_metadata(metadata, item_json):
+def add_results_info(metadata, item_json):
     metadata['date'] = item_json.get('date')                # YYYY or YYYY-MM-DD
     metadata['url'] = item_json.get('url')                  # string
     metadata['image_url'] = get_image(item_json)            # string
@@ -169,7 +169,7 @@ with open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
                 metadata = add_results_info(metadata, item_json)
                 results_metadata[idx] = metadata
         except:
-            logging.exception()
+            logging.exception("Couldn't get metadata")
             continue
 
         # ChronAm identifiers are whole directory structures, with the lccn for

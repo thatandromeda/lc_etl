@@ -27,7 +27,7 @@ with open('viz/labeled_model.csv', 'w', newline='') as f:
                 raw_item_metadata = [str(x) for x in list(raw_item_metadata.values())]
             except (KeyError, JSONDecodeError) as e:
                 # Sometimes we didn't successfully fetch the metadata.
-                logging.exception()
+                logging.exception("Couldn't zip metadata")
                 continue
 
             item_metadata = coordinate.strip().split(',') + raw_item_metadata
