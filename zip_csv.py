@@ -1,14 +1,15 @@
-# iterate through model coordinates
-# also iterate through model metadata
 import csv
 import json
+import logging
 
-with open('results_metadata.txt', 'r') as f:
-    metadata = json.load(f)
+from fetch_metadata import METADATA_ORDER, OUTPUT_DIR
 
-columns = list(iter(metadata.values()).__next__().keys())
+logging.basicConfig(filename=f'{OUTPUT_DIR}/zip_{make_timestamp()}.log',
+                    format="%(asctime)s:%(levelname)s:%(message)s",
+                    level=logging.INFO)
 
-header = ['x', 'y'] + columns
+
+header = ['x', 'y'] + METADATA_ORDER
 
 with open('viz/labeled_model.csv', 'w', newline='') as f:
     csv_output = csv.writer(f, delimiter=',')
@@ -20,10 +21,12 @@ with open('viz/labeled_model.csv', 'w', newline='') as f:
 
         for coordinate, identifier in zip(coords, identifiers):
             try:
-                raw_item_metadata = metadata[identifier.strip()]
+                with open(Path(identifier.strip())) as f:
+                    raw_item_metadata = json.load(f)
                 raw_item_metadata = [str(x) for x in list(raw_item_metadata.values())]
-            except KeyError as e:
+            except (KeyError, JSONDecodeError) as e:
                 # Sometimes we didn't successfully fetch the metadata.
+                logging.exception()
                 continue
 
             item_metadata = coordinate.strip().split(',') + raw_item_metadata

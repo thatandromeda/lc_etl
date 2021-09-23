@@ -5,6 +5,7 @@ __pycache__
 gensim_outputs/
 results*/
 newspapers/
+metadata/
 *.zip
 *.feather
 nohup.out

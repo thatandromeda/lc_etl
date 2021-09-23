@@ -2,6 +2,7 @@
 # requirements stabilize a bit.
 
 import json
+import logging
 from pathlib import Path
 import re
 import shutil
@@ -9,6 +10,10 @@ import shutil
 from queries import http_adapter, make_timestamp
 
 http = http_adapter()
+OUTPUT_DIR = 'metadata'
+logging.basicConfig(filename=f'{OUTPUT_DIR}/{make_timestamp()}.log',
+                    format="%(asctime)s:%(levelname)s:%(message)s",
+                    level=logging.INFO)
 
 def get_collections(json):
     try:
@@ -71,7 +76,13 @@ def get_item_json(identifier):
 
     return item_json
 
-
+# We need this later in zip_csv to write the csv correctly. Don't deviate from
+# this order (or if you do, add some handling in zip_csv to make sure items
+# are being written correctly).
+METADATA_ORDER = [
+    'collections', 'title', 'subjects', 'subject_headings', 'locations', 'date',
+    'url', 'image_url'
+]
 def parse_item_metadata(item_json):
     metadata = {}
 
@@ -136,26 +147,13 @@ def date_from_chronam_identifier(idx):
 #   - register handlers for the columns somewhere so you can DRY out initialize_csv and the item loop
 #   - why is chronam date not matching
 
-RESULTS_FILE = 'results_metadata.txt'
-BACKUP_RESULTS_FILE = f'results_metadata.{make_timestamp()}.txt'
-
-# Our json items will need to be enclosed in square brackets to form a valid
-# list, so let's start by initializing this. (The alternative would be keeping
-# the entire json object in memory as we add more metadata to it and writing
-# it when done, or overwriting it on every iteration; we'd get validity for
-# free but gosh is that slow-sounding.)
-# Note that this one *writes* (hence overwrites), but all others *append*.
-with open(RESULTS_FILE, 'w') as f:
-    f.write('[')
-
 with open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
     results_metadata = {}
-
-    is_first_iteration = True
 
     next(identifiers)   # skip header row
     for idx in identifiers:
         print(f'Processing {idx}...')
+        idx = idx.strip()
         try:
             if is_chronam(idx):
                 identifier = identifier_from_chronam(idx)
@@ -170,23 +168,16 @@ with open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
                 metadata = add_results_info(metadata, item_json)
                 results_metadata[idx] = metadata
         except:
-            import pdb; pdb.set_trace()
+            logging.exception()
+            continue
 
-        with open(RESULTS_FILE, 'a') as f:
-            # We need to comma-separate our json items for the entire result
-            # to be valid json. However, if we add a comma after the last one,
-            # it will be invalid. Therefore, we add a comma *before* every item
-            # *except* the first one.
-            if not is_first_iteration:
-                f.write(',')
+        # ChronAm identifiers are whole directory structures, with the lccn for
+        # the entire newspaper run at the top, followed by subdirectories for
+        # dates and editions. We want to preserve this whole structure so that
+        # different images from the same newspaper can have different metadata.
+        # This means we need to ensure that the whole filepath exists, even
+        # though we don't know how long it is.
+        output_path = Path(OUTPUT_DIR) / idx
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open('w') as f:
             json.dump(results_metadata, f)
-
-        is_first_iteration = False
-
-    # Close list so we have valid json.
-    with open(RESULTS_FILE, 'a') as f:
-        f.write(']')
-
-    # Copy to a backup location, since we will always replace results_metadata
-    # with the latest version.
-    shutil.copy(RESULTS_FILE, BACKUP_RESULTS_FILE)
