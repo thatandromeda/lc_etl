@@ -11,6 +11,7 @@ from queries import http_adapter, make_timestamp
 
 http = http_adapter()
 OUTPUT_DIR = 'metadata'
+Path(OUTPUT_DIR).mkdir(exist_ok=True)
 logging.basicConfig(filename=f'{OUTPUT_DIR}/{make_timestamp()}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)

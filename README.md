@@ -16,6 +16,8 @@ Workflow for getting data from LOC into a model, and transforming that model int
 - `quadfeather --files viz/labeled_model.csv --tile_size 10000 --destination viz/lc_etl_tiles`
   - The arguments can be different if you prefer
 
+Some of these (`train_doc2vec` in particular) may be time-consuming, so you might want to run them with `nohup`, or whatever you like for being able to walk away from a process for a while.
+
 To load a model, in order to explore it:
 - `pipenv run python`
 - `>>> import gensim`

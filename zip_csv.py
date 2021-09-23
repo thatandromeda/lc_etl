@@ -1,13 +1,14 @@
 import csv
 import json
 import logging
+from pathlib import Path
 
 from fetch_metadata import METADATA_ORDER, OUTPUT_DIR
 
+Path(OUTPUT_DIR).mkdir(exist_ok=True)
 logging.basicConfig(filename=f'{OUTPUT_DIR}/zip_{make_timestamp()}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
-
 
 header = ['x', 'y'] + METADATA_ORDER
 
