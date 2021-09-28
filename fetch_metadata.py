@@ -148,37 +148,41 @@ def date_from_chronam_identifier(idx):
 #   - register handlers for the columns somewhere so you can DRY out initialize_csv and the item loop
 #   - why is chronam date not matching
 
-with open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
-    results_metadata = {}
+def fetch():
+    with open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
+        results_metadata = {}
 
-    next(identifiers)   # skip header row
-    for idx in identifiers:
-        print(f'Processing {idx}...')
-        idx = idx.strip()
-        try:
-            if is_chronam(idx):
-                identifier = identifier_from_chronam(idx)
-                item_json = get_item_json(identifier)
-                metadata = parse_item_metadata(item_json)
-                metadata = add_newspaper_info(metadata, idx)
-                results_metadata[identifier] = metadata
-            else:
-                # identifier == idx
-                item_json = get_item_json(idx)
-                metadata = parse_item_metadata(item_json)
-                metadata = add_results_info(metadata, item_json)
-                results_metadata[idx] = metadata
-        except:
-            logging.exception("Couldn't get metadata")
-            continue
+        next(identifiers)   # skip header row
+        for idx in identifiers:
+            print(f'Processing {idx}...')
+            idx = idx.strip()
+            try:
+                if is_chronam(idx):
+                    identifier = identifier_from_chronam(idx)
+                    item_json = get_item_json(identifier)
+                    metadata = parse_item_metadata(item_json)
+                    metadata = add_newspaper_info(metadata, idx)
+                    results_metadata[identifier] = metadata
+                else:
+                    # identifier == idx
+                    item_json = get_item_json(idx)
+                    metadata = parse_item_metadata(item_json)
+                    metadata = add_results_info(metadata, item_json)
+                    results_metadata[idx] = metadata
+            except:
+                logging.exception("Couldn't get metadata")
+                continue
 
-        # ChronAm identifiers are whole directory structures, with the lccn for
-        # the entire newspaper run at the top, followed by subdirectories for
-        # dates and editions. We want to preserve this whole structure so that
-        # different images from the same newspaper can have different metadata.
-        # This means we need to ensure that the whole filepath exists, even
-        # though we don't know how long it is.
-        output_path = Path(OUTPUT_DIR) / idx
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with output_path.open('w') as f:
-            json.dump(results_metadata, f)
+            # ChronAm identifiers are whole directory structures, with the lccn for
+            # the entire newspaper run at the top, followed by subdirectories for
+            # dates and editions. We want to preserve this whole structure so that
+            # different images from the same newspaper can have different metadata.
+            # This means we need to ensure that the whole filepath exists, even
+            # though we don't know how long it is.
+            output_path = Path(OUTPUT_DIR) / idx
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with output_path.open('w') as f:
+                json.dump(results_metadata, f)
+
+if __name__ == '__main__':
+    fetch()
