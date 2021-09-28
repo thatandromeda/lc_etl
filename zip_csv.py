@@ -26,7 +26,7 @@ with open('viz/labeled_model.csv', 'w', newline='') as outfile:
                 with open(Path(identifier.strip())) as f:
                     raw_item_metadata = json.load(f)
                 raw_item_metadata = [str(x) for x in list(raw_item_metadata.values())]
-            except (KeyError, JSONDecodeError) as e:
+            except (KeyError, json.JSONDecodeError) as e:
                 # Sometimes we didn't successfully fetch the metadata.
                 logging.exception(f"Couldn't zip metadata for {identifier}")
                 continue
