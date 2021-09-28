@@ -23,7 +23,7 @@ with open('viz/labeled_model.csv', 'w', newline='') as outfile:
 
         for coordinate, identifier in zip(coords, identifiers):
             try:
-                with open(Path(identifier.strip())) as f:
+                with open(OUTPUT_DIR / Path(identifier.strip())) as f:
                     raw_item_metadata = json.load(f)
                 raw_item_metadata = [str(x) for x in list(raw_item_metadata.values())]
             except (KeyError, json.JSONDecodeError) as e:
