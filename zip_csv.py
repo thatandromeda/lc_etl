@@ -13,8 +13,8 @@ logging.basicConfig(filename=f'{OUTPUT_DIR}/zip_{make_timestamp()}.log',
 
 header = ['x', 'y'] + METADATA_ORDER
 
-with open('viz/labeled_model.csv', 'w', newline='') as f:
-    csv_output = csv.writer(f, delimiter=',')
+with open('viz/labeled_model.csv', 'w', newline='') as outfile:
+    csv_output = csv.writer(outfile, delimiter=',')
     csv_output.writerow(header)
     with open('viz/model_20210824_132017_coordinates.csv', 'r') as coords, open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
         # Skip header rows
