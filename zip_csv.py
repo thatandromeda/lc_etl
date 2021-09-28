@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from fetch_metadata import METADATA_ORDER, OUTPUT_DIR
+from slurp import make_timestamp
 
 Path(OUTPUT_DIR).mkdir(exist_ok=True)
 logging.basicConfig(filename=f'{OUTPUT_DIR}/zip_{make_timestamp()}.log',
