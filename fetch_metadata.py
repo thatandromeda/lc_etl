@@ -82,7 +82,7 @@ def get_item_json(identifier):
 # are being written correctly).
 METADATA_ORDER = [
     'collections', 'title', 'subjects', 'subject_headings', 'locations', 'date',
-    'url', 'image_url'
+    'url', 'image_url', 'description'
 ]
 def parse_item_metadata(item_json):
     metadata = {}
@@ -94,15 +94,17 @@ def parse_item_metadata(item_json):
     metadata['subjects'] = item_json.get('subjects')
     metadata['subject_headings'] = item_json.get('subject_headings')  # list of strings
     metadata['locations'] = get_locations(item_json)
+    metadata['description'] = item_json.get('description')
 
     return metadata
 
 
 def add_newspaper_info(metadata, idx):
     metadata['date'] = date_from_chronam_identifier(idx)    # YYYY-MM-DD
-    metadata['url'] = url_from_chronam_identifier(idx)      # string
+    url = url_from_chronam_identifier(idx)
+    metadata['url'] = url    # string
     # string; guessing rather than API round-tripping; seems usually right
-    metadata['image_url'] = idx.strip().rstrip('/') + '.jp2'
+    metadata['image_url'] = f'{url}.jp2'
     return metadata
 
 
