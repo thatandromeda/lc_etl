@@ -1,6 +1,7 @@
 from collections import defaultdict
 import logging
 import os
+from pathlib import Path
 import pickle
 import re
 import requests
@@ -217,6 +218,50 @@ def get_batch_to_lccn():
     return batch_to_lccn
 
 
+def filter_for_quality(target_dir, dict_source='/usr/share/dict/words', threshold=0.625):
+    """
+    Find all .txt files in the target directory; check to see if they have
+    adequate OCR quality; and delete any which do not.
+    """
+    good_files = 0
+    total_files = 0
+
+    with Path(dict_source).open() as f:
+        dictionary = f.read().splitlines()
+
+    for txt_file in Path(target_dir).rglob('*.txt'):
+        total_files += 1
+        good_words = 0
+
+        with txt_file.open() as f:
+            text = f.read()
+        tokens = text.split(' ')
+
+        total_words = len(tokens)
+        if not total_words:
+            # Delete empty files.
+            Path(txt_file).unlink()
+            continue
+
+        # Set intersection with the dictionary is tempting here, but don't;
+        # that would count every occurrence of (for example) "the" as a single
+        # word, which would make it impossible to tell what percent were
+        # properly OCRed.
+        for token in tokens:
+            if token in dictionary:
+                good_words += 1
+
+        if good_words / total_words < threshold:
+            Path(txt_file).unlink()
+        else:
+            good_files += 1
+
+    try:
+        print(f'{good_files} good files found of {total_files} total files ({round(100*good_files/total_files)} percent)')
+    except ZeroDivisionError:
+        print('No files found.')
+
+
 # The endpoint is exclusive, so this matches dates from 1863 through 1877.
 def slurp_newspapers(goal_dates=range(1863, 1878)):
     make_newspaper_dir()
@@ -244,14 +289,14 @@ def slurp_newspapers(goal_dates=range(1863, 1878)):
             for subdir in os.listdir(os.path.join(newspaper_dir, output_dir)):
                 if int(subdir) not in goal_dates:
                     shutil.rmtree(os.path.join(newspaper_dir, output_dir, subdir))
+            # We get everything in both .txt and .xml, but we only want .txt.
+            subprocess.call("find newspapers/ -type f -name '*.xml' -delete", shell=True)
+            filter_for_quality(output_dir)
 
         subprocess.call(f'rm {tmpzip}', shell=True)
-        # We get everything in both .txt and .xml, but we only want .txt.
-        subprocess.call('find newspapers/ -type f -name '*.xml' -delete', shell=True)
         check_for_disk_space()
 
-# The above works BUT it eats your entire disk, so cloud it and/or make it a
-# streaming thing. Also you might want to pick a subset because class imbalance.
+# You might want to pick a subset because class imbalance.
 # Also if you're picking a subset to be on par with other things you may need
 # to think about pretrained vectors, for all that they are a problem.
 # Delete all empty subdirectories of newspaper_dir.
