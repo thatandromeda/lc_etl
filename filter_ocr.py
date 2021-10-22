@@ -20,6 +20,7 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
     """
     good_files = 0
     total_files = 0
+    num_to_check = 1000
 
     with Path(dict_source).open() as f:
         dictionary = f.read().splitlines()
@@ -28,37 +29,25 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
         total_files += 1
         if total_files % 100 == 0:
             print(f'{total_files} checked')
-        good_words = 0
 
         with txt_file.open() as f:
             text = f.read()
         tokens = text.split(' ')
 
-        total_words = len(tokens)
-        if not total_words:
-            # Delete empty files.
-            Path(txt_file).unlink()
-            continue
-
         # Set intersection with the dictionary is tempting here, but don't;
         # that would count every occurrence of (for example) "the" as a single
         # word, which would make it impossible to tell what percent were
         # properly OCRed.
-        tokens_checked = 0
-        for token in tokens:
+        # Also, we won't bother processing the entire file; if the quality is
+        # terrible, it will be obvious soon enough. ChronAm files range from 1
+        # word to >20K, with the vast majority of them well over 1000, so this
+        # will result in a substantial time savings.
+        good_words = 0
+        for token in tokens[:num_to_check]:
             if token in dictionary:
                 good_words += 1
 
-            tokens_checked += 1
-            # Quit early if the file is obviously terrible. ChronAm files
-            # range from 1 word to >20K, with the vast majority of them well
-            # over 1000, so this will result in a substantial time savings.
-            if (tokens_checked == 1000) and (good_words / tokens_checked < threshold):
-                Path(txt_file).unlink()
-                continue
-
-
-        if good_words / total_words < threshold:
+        if good_words / min(len(tokens), num_to_check) < threshold:
             Path(txt_file).unlink()
         else:
             good_files += 1
