@@ -53,7 +53,7 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
             # Quit early if the file is obviously terrible. ChronAm files
             # range from 1 word to >20K, with the vast majority of them well
             # over 1000, so this will result in a substantial time savings.
-            if (tokens_checked == 1000) and (good_words / total_words < threshold):
+            if (tokens_checked == 1000) and (good_words / tokens_checked < threshold):
                 Path(txt_file).unlink()
                 continue
 
