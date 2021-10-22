@@ -44,9 +44,19 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
         # that would count every occurrence of (for example) "the" as a single
         # word, which would make it impossible to tell what percent were
         # properly OCRed.
+        tokens_checked = 0
         for token in tokens:
             if token in dictionary:
                 good_words += 1
+
+            tokens_checked += 1
+            # Quit early if the file is obviously terrible. ChronAm files
+            # range from 1 word to >20K, with the vast majority of them well
+            # over 1000, so this will result in a substantial time savings.
+            if (tokens_checked == 1000) and (good_words / total_words < threshold):
+                Path(txt_file).unlink()
+                continue
+
 
         if good_words / total_words < threshold:
             Path(txt_file).unlink()
