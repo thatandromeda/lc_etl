@@ -3,6 +3,7 @@ from pathlib import Path
 
 DICT_SOURCE = '/usr/share/dict/words'
 THRESHOLD = 0.625
+LOGFILE = 'ratings.txt'
 
 parser = ArgumentParser()
 parser.add_argument('--target_dir', help='directory containing files to check')
@@ -24,15 +25,19 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
 
     with Path(dict_source).open() as f:
         dictionary = f.read().splitlines()
+        dictionary = [word.lower() for word in dictionary]
 
     for txt_file in Path(target_dir).rglob('*.txt'):
         total_files += 1
         if total_files % 100 == 0:
-            print(f'{total_files} checked')
+            print(f'{good_files} good files found of {total_files} total files ({round(100*good_files/total_files)} percent)')
 
         with txt_file.open() as f:
             text = f.read()
-        tokens = text.split(' ')
+        # Make sure to split on any whitespace, not just spaces! This is the
+        # default behavior of split.
+        tokens = text.split()
+        tokens = [token.lower() for token in tokens]
 
         # Set intersection with the dictionary is tempting here, but don't;
         # that would count every occurrence of (for example) "the" as a single
@@ -47,7 +52,11 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
             if token in dictionary:
                 good_words += 1
 
-        if good_words / min(len(tokens), num_to_check) < threshold:
+        rating = good_words / min(len(tokens), num_to_check)
+        with Path(LOGFILE).open('a') as f:
+            f.write(str(rating))
+
+        if rating < threshold:
             Path(txt_file).unlink()
         else:
             good_files += 1
