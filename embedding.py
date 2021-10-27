@@ -18,6 +18,9 @@ OUTPUT_DIR = 'viz'
 
 Path(f'./{OUTPUT_DIR}').mkdir(exist_ok=True)
 
+def file_prefix():
+    return Path(options.model).name
+
 def make_embedding(model):
     umap_args = {'n_components': 2, 'metric': 'cosine'}
     # fit() returns an embedding (of type array) and a dict of auxiliary data;
@@ -39,7 +42,7 @@ def make_embedding(model):
 #       labels.append('No Department')
 def show_plot(model, embedding):
     hover_data = pd.DataFrame({'index': np.arange(len(model.dv)), 'label': model.dv.index_to_key})
-    umap.plot.output_file(f'{options.model}_plot')
+    umap.plot.output_file(f'{file_prefix()}_plot')
     p = umap.plot.interactive(embedding, hover_data=hover_data, point_size=2) # fancy
     umap.plot.show(p)
 
@@ -52,7 +55,7 @@ def write_to_tsv(embedding):
     """
     Output coordinates as a TSV file, suitable for use by deepscatter.
     """
-    output_path = Path(OUTPUT_DIR).joinpath(f'{options.model}_coordinates.csv')
+    output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix()}_coordinates.csv')
     np.savetxt(output_path, embedding, delimiter=",",
                header="x\ty", comments='')
 
@@ -66,7 +69,7 @@ def write_metadata(model):
     """
     header = ['lccn']
 
-    output_path = Path(OUTPUT_DIR).joinpath(f'{options.model}_metadata.csv')
+    output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix()}_metadata.csv')
 
     with open(output_path, 'w', newline='') as f:
         csv_output = csv.writer(f, delimiter=',')
