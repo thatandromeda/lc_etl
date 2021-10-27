@@ -12,7 +12,7 @@ from gensim.parsing.preprocessing import remove_stopwords
 
 from queries import make_timestamp
 
-output_dir = 'gensim_output'
+output_dir = 'gensim_outputs'
 timestamp = make_timestamp()
 logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
