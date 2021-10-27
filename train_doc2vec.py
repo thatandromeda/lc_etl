@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from collections import defaultdict
 import logging
 import glob
@@ -16,6 +17,13 @@ timestamp = make_timestamp()
 logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
+
+NEWSPAPER_DIR_DEFAULT = 'newspapers'
+parser = ArgumentParser()
+parser.add_argument('--newspaper_dir',
+                    help='directory containing newspaper files',
+                    default=NEWSPAPER_DIR_DEFAULT)
+options = parser.parse_args()
 
 # TODO
 # definitely want some kind of stemming, to deal with things like acre/acres,
@@ -56,13 +64,14 @@ epoch_logger = EpochLogger()
 # Iterates through all available LoC files, yielding (document, tag).
 # Document is unprocessed -- a straight read of the file.
 class LocDiskIterator:
-    def __init__(self):
+    def __init__(self, newspaper_dir):
         super(LocDiskIterator, self).__init__()
-        self.newspaper_path = re.compile('newspapers/([\w/-]+)/ocr.txt')
+        self.newspaper_dir = newspaper_dir
+        self.newspaper_path = re.compile('{self.newspaper_dir}/([\w/-]+)/ocr.txt')
 
     def __iter__(self):
         # First do newspapers
-        for newspaper in glob.iglob('newspapers/**/*.txt', recursive=True):
+        for newspaper in glob.iglob('{self.newspaper_dir}/**/*.txt', recursive=True):
             # Expected path format: 'newspapers/lccn/yyyy/mm/dd/ed-x/seq-x/ocr.txt'
             tag = self.newspaper_path.match(newspaper).group(1)
             with open(newspaper, 'r') as f:
@@ -82,8 +91,8 @@ class LocDiskIterator:
 
 # Iterates through all available LoC files, yielding TaggedDocuments.
 class LocCorpus:
-    def __iter__(self):
-        for document, tag in LocDiskIterator():
+    def __iter__(self, newspaper_dir):
+        for document, tag in LocDiskIterator(newspaper_dir):
             yield TaggedDocument(preprocess(document), [tag])
 
 
@@ -142,7 +151,7 @@ if __name__ == '__main__':
     model.build_vocab(LocCorpus())
     # Must re-initialize the corpus so that the iterator hasn't run off the end of
     # it!
-    model.train(LocCorpus(),
+    model.train(LocCorpus(options.newspaper_dir),
                 total_examples=model.corpus_count,
                 epochs=model.epochs,
                 callbacks=[epoch_logger])
