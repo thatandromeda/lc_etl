@@ -11,6 +11,12 @@ logging.basicConfig(filename=f'{OUTPUT_DIR}/zip_{make_timestamp()}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
 
+parser = ArgumentParser()
+parser.add_argument('--coordinates', help='path/to/coordinates/file', required=True)
+parser.add_argument('--metadata', help='path/to/metadata/file', required=True)
+parser.add_argument('--output', help='path/to/output/file', required=True)
+options = parser.parse_args()
+
 header = ['x', 'y'] + METADATA_ORDER
 
 def extract_dict(identifier, metadata):
@@ -19,10 +25,10 @@ def extract_dict(identifier, metadata):
 
     return metadata[identifier]
 
-with open('viz/labeled_model.csv', 'w', newline='') as outfile:
+with open(options.output, 'w', newline='') as outfile:
     csv_output = csv.writer(outfile, delimiter=',')
     csv_output.writerow(header)
-    with open('viz/model_20210824_132017_coordinates.csv', 'r') as coords, open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
+    with open(options.coordinates, 'r') as coords, open(options.metadata, 'r') as identifiers:
         # Skip header rows
         next(coords)
         next(identifiers)

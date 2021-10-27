@@ -16,6 +16,12 @@ logging.basicConfig(filename=f'{OUTPUT_DIR}/{make_timestamp()}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
 
+parser = ArgumentParser()
+parser.add_argument('--identifiers',
+                    help='path to metadata file output by embedding.py',
+                    required=True)
+options = parser.parse_args()
+
 def get_collections(json):
     try:
         options = json['partof']
@@ -151,7 +157,7 @@ def date_from_chronam_identifier(idx):
 #   - why is chronam date not matching
 
 def fetch():
-    with open('viz/model_20210824_132017_metadata.csv', 'r') as identifiers:
+    with open(options.identifiers, 'r') as identifiers:
         results_metadata = {}
 
         next(identifiers)   # skip header row
