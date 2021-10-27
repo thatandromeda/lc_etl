@@ -107,8 +107,10 @@ def filter_stopwords(text):
 
 # Most basic possible tokenizing. It's encapsulated into a function
 # to make it easy to swap out later.
+# Make sure to split on any whitespace, not just spaces! This is the
+# default behavior of split.
 def tokenize(text):
-    return text.lower().split(' ')
+    return text.lower().split()
 
 
 # Encapsulate all our preprocessing steps, so we can easily swap out the whole

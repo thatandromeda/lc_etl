@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
 from pathlib import Path
 
+from train_doc2vec import tokenize
+
 DICT_SOURCE = '/usr/share/dict/words'
 THRESHOLD = 0.625
 LOGFILE = 'ratings.txt'
@@ -34,10 +36,9 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
 
         with txt_file.open() as f:
             text = f.read()
-        # Make sure to split on any whitespace, not just spaces! This is the
-        # default behavior of split.
-        tokens = text.split()
-        tokens = [token.lower() for token in tokens]
+
+        # Use same tokenization behavior that the training process will use.
+        tokens = tokenize(text)
 
         # Set intersection with the dictionary is tempting here, but don't;
         # that would count every occurrence of (for example) "the" as a single
