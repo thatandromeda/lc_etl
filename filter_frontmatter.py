@@ -46,8 +46,8 @@ def filter_frontmatter(target_dir, cutoff=CUTOFF):
         if shorter_text:
             with txt_file.open('w') as f:
                 f.write(shorter_text)
-            else:
-                Path(txt_file).unlink()
+        else:
+            Path(txt_file).unlink()
 
 
 if __name__ == '__main__':
