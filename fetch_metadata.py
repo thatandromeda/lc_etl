@@ -1,6 +1,7 @@
 # For now, let's just write it to files -- we'll set up db infrastructure when
 # requirements stabilize a bit.
 
+from argparse import ArgumentParser
 import json
 import logging
 from pathlib import Path
