@@ -91,8 +91,11 @@ class LocDiskIterator:
 
 # Iterates through all available LoC files, yielding TaggedDocuments.
 class LocCorpus:
-    def __iter__(self, newspaper_dir):
-        for document, tag in LocDiskIterator(newspaper_dir):
+    def __init__(self, newspaper_dir):
+        self.newspaper_dir = newspaper_dir
+
+    def __iter__(self):
+        for document, tag in LocDiskIterator(self.newspaper_dir):
             yield TaggedDocument(preprocess(document), [tag])
 
 
