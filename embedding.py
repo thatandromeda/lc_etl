@@ -18,13 +18,12 @@ OUTPUT_DIR = 'viz'
 
 Path(f'./{OUTPUT_DIR}').mkdir(exist_ok=True)
 
-model = gensim.models.Doc2Vec.load(options.model)
-umap_args = {'n_components': 2, 'metric': 'cosine'}
-# fit() returns an embedding (of type array) and a dict of auxiliary data;
-# fit_transform() returns just the embedding, normalized. I think.
-embedding = umap.UMAP(**umap_args).fit_transform(model.dv.vectors)
+def make_embedding(model):
+    umap_args = {'n_components': 2, 'metric': 'cosine'}
+    # fit() returns an embedding (of type array) and a dict of auxiliary data;
+    # fit_transform() returns just the embedding, normalized. I think.
+    return umap.UMAP(**umap_args).fit_transform(model.dv.vectors)
 
-hover_data = pd.DataFrame({'index': np.arange(len(model.dv)), 'label': model.dv.index_to_key})
 
 # It will use labels for colors, which means we want to get/keep metadata on
 # whatever we want to color by -- probably collection. We don't have that
@@ -38,17 +37,18 @@ hover_data = pd.DataFrame({'index': np.arange(len(model.dv)), 'label': model.dv.
 #       labels.append(t.department.first().name)
 #     except:
 #       labels.append('No Department')
-
-umap.plot.output_file(f'{options.model}_plot')
-p = umap.plot.interactive(embedding, hover_data=hover_data, point_size=2) # fancy
-umap.plot.show(p)
+def show_plot(model, embedding):
+    hover_data = pd.DataFrame({'index': np.arange(len(model.dv)), 'label': model.dv.index_to_key})
+    umap.plot.output_file(f'{options.model}_plot')
+    p = umap.plot.interactive(embedding, hover_data=hover_data, point_size=2) # fancy
+    umap.plot.show(p)
 
 # Where we're at:
 # the hover data is too big to display
 # umap throws weird errors
 # maybe it's time to think about deepscatter again
 
-def write_to_tsv():
+def write_to_tsv(embedding):
     """
     Output coordinates as a TSV file, suitable for use by deepscatter.
     """
@@ -57,7 +57,7 @@ def write_to_tsv():
                header="x\ty", comments='')
 
 
-def write_metadata():
+def write_metadata(model):
     """
     Write metadata for each of the data points to a tsv file, suitable for use
     by deepscatter.
@@ -76,3 +76,10 @@ def write_metadata():
         # metadata.
         for key in model.dv.index_to_key:
             csv_output.writerow([key])
+
+
+if __name__ == '__main__':
+    model = gensim.models.Doc2Vec.load(options.model)
+    embedding = make_embedding(model)
+    write_to_tsv(embedding)
+    write_metadata(model)

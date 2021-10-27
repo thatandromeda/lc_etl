@@ -7,6 +7,10 @@ Workflow for getting data from LOC into a model, and transforming that model int
 
 - edit `dataset.py` as needed to specify desired items/collections
 - `pipenv run python dataset.py` (gets the fulltext data)
+- Consider copying the newspapers to a backup directory before you run the filters on them.
+- `pipenv run python filter_frontmatter --target_dir (wherever your newspapers are)`
+- `pipenv run python filter_for_quality --target_dir (wherever your newspapers are)`
+  - You probably want to run this as `nohup pipenv run python -u filter_for_quality --target_dir (wherever)`. It's long.
 - `pipenv run python train_doc2vec.py` (trains the neural net)
 - `pipenv run python embedding.py` (projects the neural net down to a 2d embedding)
 - edit `fetch_metadata.py` so that the filename/timestamp matches the just-created file
