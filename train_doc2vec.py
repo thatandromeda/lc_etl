@@ -148,7 +148,7 @@ def read_document(document, tokens_only=False):
 # into the shell for debugging.
 if __name__ == '__main__':
     model = Doc2Vec(vector_size=50, min_count=2, epochs=40)
-    model.build_vocab(LocCorpus())
+    model.build_vocab(LocCorpus(options.newspaper_dir))
     # Must re-initialize the corpus so that the iterator hasn't run off the end of
     # it!
     model.train(LocCorpus(options.newspaper_dir),
