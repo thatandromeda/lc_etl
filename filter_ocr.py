@@ -7,15 +7,6 @@ DICT_SOURCE = '/usr/share/dict/words'
 THRESHOLD = 0.625
 LOGFILE = 'ratings.txt'
 
-parser = ArgumentParser()
-parser.add_argument('--target_dir', help='directory containing files to check')
-parser.add_argument('--dict_source', help='path to dictionary file',
-                    default=DICT_SOURCE)
-parser.add_argument('--threshold',
-                    help='minimum fraction of acceptable words (between 0 and 1)',
-                    default=THRESHOLD)
-options = parser.parse_args()
-
 def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD):
     """
     Find all .txt files in the target directory; check to see if they have
@@ -69,4 +60,13 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
 
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--target_dir', help='directory containing files to check')
+    parser.add_argument('--dict_source', help='path to dictionary file',
+                        default=DICT_SOURCE)
+    parser.add_argument('--threshold',
+                        help='minimum fraction of acceptable words (between 0 and 1)',
+                        default=THRESHOLD)
+    options = parser.parse_args()
+
     filter_for_quality(options.target_dir, options.dict_source, options.threshold)

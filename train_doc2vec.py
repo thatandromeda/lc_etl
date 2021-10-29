@@ -19,11 +19,6 @@ logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
                     level=logging.INFO)
 
 NEWSPAPER_DIR_DEFAULT = 'newspapers'
-parser = ArgumentParser()
-parser.add_argument('--newspaper_dir',
-                    help='directory containing newspaper files',
-                    default=NEWSPAPER_DIR_DEFAULT)
-options = parser.parse_args()
 
 # TODO
 # definitely want some kind of stemming, to deal with things like acre/acres,
@@ -152,6 +147,12 @@ def read_document(document, tokens_only=False):
 # Although I will run this from the command line, I need things to be importable
 # into the shell for debugging.
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--newspaper_dir',
+                        help='directory containing newspaper files',
+                        default=NEWSPAPER_DIR_DEFAULT)
+    options = parser.parse_args()
+
     model = Doc2Vec(vector_size=50, min_count=2, epochs=40)
     model.build_vocab(LocCorpus(options.newspaper_dir))
     # Must re-initialize the corpus so that the iterator hasn't run off the end of

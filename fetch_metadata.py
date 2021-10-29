@@ -17,12 +17,6 @@ logging.basicConfig(filename=f'{OUTPUT_DIR}/{make_timestamp()}.log',
                     format="%(asctime)s:%(levelname)s:%(message)s",
                     level=logging.INFO)
 
-parser = ArgumentParser()
-parser.add_argument('--identifiers',
-                    help='path to metadata file output by embedding.py',
-                    required=True)
-options = parser.parse_args()
-
 def get_collections(json):
     try:
         options = json['partof']
@@ -194,4 +188,10 @@ def fetch():
                 json.dump(results_metadata, f)
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--identifiers',
+                        help='path to metadata file output by embedding.py',
+                        required=True)
+    options = parser.parse_args()
+
     fetch()

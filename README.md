@@ -17,7 +17,7 @@ Workflow for getting data from LOC into a model, and transforming that model int
 - `pipenv run python fetch_metadata.py --identifiers=/path/to/embedding/output` (gets the metadata)
   - `embedding.py` will have output a file with a name like `model_20211027_150539_metadata.csv`; use that name here
   - A more efficient version would combine this with fetching the dataset, and/or cache previously fetched metadata somewhere, but I've been developing this one step of the pipeline at a time for ease of troubleshooting
-- `pipenv run zip_csv.py --coordinates=path/to/coordinates/csv --metadata=path/to/metadata/csv --output=desired/path/of/output/csv` (combines embedding vectors with metadata, into a csv suitable for use by quadfeather)
+- `pipenv run python zip_csv.py --coordinates=path/to/coordinates/csv --metadata=path/to/metadata/csv --output=desired/path/of/output/csv` (combines embedding vectors with metadata, into a csv suitable for use by quadfeather)
 - `quadfeather --files viz/labeled_model.csv --tile_size 10000 --destination viz/lc_etl_tiles`
   - The arguments can be different if you prefer
 

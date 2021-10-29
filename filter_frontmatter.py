@@ -19,13 +19,6 @@ from pathlib import Path
 # end up grouped together on that basis.
 CUTOFF = 7
 
-parser = ArgumentParser()
-parser.add_argument('--target_dir', help='directory containing files to check')
-parser.add_argument('--cutoff',
-                    help='number of lines to remove from the front matter',
-                    default=CUTOFF)
-options = parser.parse_args()
-
 def filter_frontmatter(target_dir, cutoff=CUTOFF):
     """
     Find all .txt files in the target directory; remove $cutoff lines from the
@@ -51,4 +44,11 @@ def filter_frontmatter(target_dir, cutoff=CUTOFF):
 
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--target_dir', help='directory containing files to check')
+    parser.add_argument('--cutoff',
+                        help='number of lines to remove from the front matter',
+                        default=CUTOFF)
+    options = parser.parse_args()
+
     filter_frontmatter(options.target_dir, options.cutoff)

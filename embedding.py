@@ -10,10 +10,6 @@ import pandas as pd
 import umap.umap_ as umap
 import umap.plot
 
-parser = ArgumentParser()
-parser.add_argument('--model', help='path/to/filename of model to load')
-options = parser.parse_args()
-
 OUTPUT_DIR = 'viz'
 
 Path(f'./{OUTPUT_DIR}').mkdir(exist_ok=True)
@@ -82,6 +78,10 @@ def write_metadata(model):
 
 
 if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--model', help='path/to/filename of model to load')
+    options = parser.parse_args()
+
     model = gensim.models.Doc2Vec.load(options.model)
     embedding = make_embedding(model)
     write_to_tsv(embedding)
