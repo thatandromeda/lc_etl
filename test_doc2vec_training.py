@@ -8,7 +8,7 @@ import time
 from gensim.models.doc2vec import Doc2Vec
 from gensim.models.callbacks import CallbackAny2Vec
 
-from queries import slurp, make_timestamp
+from queries import slurp, make_timestamp, initialize_logger
 
 import logging
 
@@ -17,9 +17,7 @@ parser.add_argument('--load', help='filename of pickled corpus to load')
 options = parser.parse_args()
 
 timestamp = make_timestamp()
-logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
-                    format="%(asctime)s:%(levelname)s:%(message)s",
-                    level=logging.INFO)
+initialize_logger(f'{output_dir}/train_{timestamp}.log')
 
 class EpochLogger(CallbackAny2Vec):
     def __init__(self):

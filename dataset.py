@@ -1,3 +1,5 @@
+from argparse import ArgumentParser
+import importlib
 import logging
 
 from locr import Fetcher
@@ -5,58 +7,52 @@ from locr import Fetcher
 from lc_items import slurp_items
 from lc_collections import slurp_collections
 from newspapers import slurp_newspapers
-from queries import slurp
+from queries import slurp, initialize_logger
 
-# In need of further processing:
-# https://www.loc.gov/collections/selected-digitized-books/?dates=1863/1877&fa=language:english%7Conline-format:online+text%7Clocation:united+states
 
-logging.basicConfig(filename='slurp.log',
-                    format="%(asctime)s:%(levelname)s:%(message)s",
-                    level=logging.INFO)
-collections = [
-    "https://www.loc.gov/collections/abraham-lincoln-papers/",
-    "https://www.loc.gov/collections/slave-narratives-from-the-federal-writers-project-1936-to-1938/"
-]
+def normalize(dataset_path):
+    return dataset_path.replace('.py', '').replace('dataset_definitions/', '')
 
-date_filtered_collections = [
-    # supreme court opinions
-    "https://www.loc.gov/collections/united-states-reports/",
-    # this is https://memory.loc.gov/ammem/amlaw/lwsl.html
-    "https://www.loc.gov/collections/united-states-statutes-at-large/"
-]
 
-queries = [
-    "https://www.loc.gov/search/?fa=contributor:american+colonization+society",
-    "https://www.loc.gov/collections/broadsides-and-other-printed-ephemera/?q=reconstruction+OR+%22ex-slave%22",
-    "https://www.loc.gov/collections/broadsides-and-other-printed-ephemera/?q=colored+OR+negro+OR+South+OR+Congress&dates=1863/1877",
-    "https://www.loc.gov/search/?fa=subject:african-american+history|online-format:online+text&dates=1863/1877",
-    "https://www.loc.gov/search/?fa=subject:african+american|online-format:online+text&dates=1863/1877",
-    "https://www.loc.gov/search/?fa=subject:african+american+history|online-format:online+text&dates=1863/1877",
-    "https://www.loc.gov/search/?fa=subject:black+history|online-format:online+text&dates=1863/1877",
-    "https://www.loc.gov/search/?fa=subject:reconstruction|online-format:online+text",
-    "https://www.loc.gov/search/?fa=partof:american+memory|online-format:online+text&dates=1863/1877",
-    "https://www.loc.gov/collections/rare-book-selections/?fa=language:english|online-format:online+text|location:united+states&dates=1863/1877",
-    "https://www.loc.gov/search/?dates=1863/1877&fa=online-format:online+text%7Cpartof:rare+book+and+special+collections+division",
-    ]
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--dataset_path',
+        help='dataset name. This should be a file in dataset_definitions that contains lists of collections, date-filtered collections, queries, and items to pull from LOC. The lists may be empty.')
+    parser.add_argument('--logfile', help='name of log file', default="dataset.log")
+    options = parser.parse_args()
 
-items = ["https://www.loc.gov/item/29009286/",
-         "https://www.loc.gov/item/rbpe.18704800/",
-         "https://www.loc.gov/item/rbpe.24001000/"]
+    initialize_logger(options.logfile)
 
-logging.info('Fetching data from collections...')
-slurp_collections(collections)
-slurp_collections(date_filtered_collections, filter_for_dates=True)
+    data_def = __import__(
+        f'dataset_definitions.{normalize(options.dataset_path)}',
+        fromlist=['collections', 'date_filtered_collections', 'items', 'queries']
+    )
 
-logging.info('Fetching data from searches...')
-for query in queries:
-    logging.info(query)
-    slurp(url=query)
+    if data_def.collections:
+        logging.info('Fetching data from collections...')
+        slurp_collections(data_def.collections)
+    else:
+        logging.info('No collections defined.')
 
-# The first item in the list has fulltext but it's not being fetched -- we're
-# gonna need to add a fetcher. Hold off on that until we can consult logs for
-# all the things not fetched.
-logging.info('Fetching data from items...')
-slurp_items(items)
+    if data_def.date_filtered_collections:
+        logging.info('Fetching data from date-filtered collections...')
+        slurp_collections(data_def.date_filtered_collections, filter_for_dates=True)
+    else:
+        logging.info('No date-filtered collections defined.')
 
-logging.info('Fetching data from ChronAm...')
-slurp_newspapers()
+    if data_def.queries:
+        logging.info('Fetching data from queries...')
+        for query in data_def.queries:
+            logging.info(query)
+            slurp(url=query)
+    else:
+        logging.info('No queries defined.')
+
+    if data_def.items:
+        logging.info('Fetching data from items...')
+        slurp_items(data_def.items)
+    else:
+        logging.info('No items defined.')
+
+    logging.info('Fetching data from ChronAm...')
+    slurp_newspapers()

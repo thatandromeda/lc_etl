@@ -1,6 +1,8 @@
 from argparse import ArgumentParser
+import logging
 from pathlib import Path
 
+from queries import initialize_logger
 from train_doc2vec import tokenize
 
 DICT_SOURCE = '/usr/share/dict/words'
@@ -23,7 +25,7 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
     for txt_file in Path(target_dir).rglob('*.txt'):
         total_files += 1
         if total_files % 100 == 0:
-            print(f'{good_files} good files found of {total_files} total files ({round(100*good_files/total_files)} percent)')
+            logging.info(f'{good_files} good files found of {total_files} total files ({round(100*good_files/total_files)} percent)')
 
         with txt_file.open() as f:
             text = f.read()
@@ -49,14 +51,19 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
             f.write(str(rating))
 
         if rating < threshold:
-            Path(txt_file).unlink()
+            try:
+                Path(txt_file).unlink()
+            except FileNotFoundError:
+                # File may have already been deleted if multiple filters are
+                # running in parallel.
+                continue
         else:
             good_files += 1
 
     try:
-        print(f'{good_files} good files found of {total_files} total files ({round(100*good_files/total_files)} percent)')
+        logging.info(f'{good_files} good files found of {total_files} total files ({round(100*good_files/total_files)} percent)')
     except ZeroDivisionError:
-        print('No files found.')
+        logging.info('No files found.')
 
 
 if __name__ == '__main__':
@@ -67,6 +74,9 @@ if __name__ == '__main__':
     parser.add_argument('--threshold',
                         help='minimum fraction of acceptable words (between 0 and 1)',
                         default=THRESHOLD)
+    parser.add_argument('--logfile', default="filter_ocr.log")
     options = parser.parse_args()
+
+    initialize_logger(options.logfile)
 
     filter_for_quality(options.target_dir, options.dict_source, options.threshold)

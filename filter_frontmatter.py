@@ -1,5 +1,8 @@
 from argparse import ArgumentParser
+import logging
 from pathlib import Path
+
+from queries import initialize_logger
 
 # This cutoff was determined by:
 # - looking at a random sample of 100 files
@@ -29,7 +32,7 @@ def filter_frontmatter(target_dir, cutoff=CUTOFF):
     for txt_file in Path(target_dir).rglob('*.txt'):
         total_files += 1
         if total_files % 100 == 0:
-            print(f'{total_files} edited')
+            logging.info(f'{total_files} edited')
 
         with txt_file.open() as f:
             text = f.readlines()
@@ -40,7 +43,12 @@ def filter_frontmatter(target_dir, cutoff=CUTOFF):
             with txt_file.open('w') as f:
                 f.write(' '.join(shorter_text))
         else:
-            Path(txt_file).unlink()
+            try:
+                Path(txt_file).unlink()
+            except FileNotFoundError:
+                # File may have already been deleted if multiple filters are
+                # running in parallel.
+                continue
 
 
 if __name__ == '__main__':
@@ -49,6 +57,9 @@ if __name__ == '__main__':
     parser.add_argument('--cutoff',
                         help='number of lines to remove from the front matter',
                         default=CUTOFF)
+    parser.add_argument('--logfile', default="filter_frontmatter.log")
     options = parser.parse_args()
+
+    initialize_logger(options.logfile)
 
     filter_frontmatter(options.target_dir, options.cutoff)

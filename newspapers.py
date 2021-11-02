@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from time import sleep
 
+from filter_ocr import filter_for_quality
 from queries import http_adapter, check_for_disk_space
 
 newspapers_list = ["American Freedman", "Annual Cyclopedia",
@@ -83,7 +84,6 @@ def check_all_reconstruction_era_papers():
             lccns = [chronam_id.match(item['id']).group(1) for item in response['items']]
             all_lccns.update(lccns)
         except Exception as e:
-            # import pdb; pdb.set_trace()
             logging.exception(f'Failed to fetch from {url}')
 
         logging.info(f'page {page} processed')
@@ -217,15 +217,20 @@ def get_batch_to_lccn():
     return batch_to_lccn
 
 
-# The endpoint is exclusive, so this matches dates from 1863 through 1877.
-def slurp_newspapers(goal_dates=range(1863, 1878)):
+# The endpoint is exclusive, so this matches dates from 1865 through 1877.
+def slurp_newspapers(goal_dates=range(1865, 1878)):
     make_newspaper_dir()
     batch_to_lccn = get_batch_to_lccn()
     final_batches, final_urls = identify_chronam_downloads()
 
     batch_match = re.compile(r'/([\w_]+).tar.bz2')
 
+    total = 0
+
     for url in final_urls:
+        total += 1
+        if total > 10:
+            break
         logging.info(f'Downloading {url}...')
         with requests.get(url, stream=True) as r:
             r.raise_for_status()

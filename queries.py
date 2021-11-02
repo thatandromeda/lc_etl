@@ -32,6 +32,13 @@ def http_adapter():
     return http
 
 
+def initialize_logger(logfile):
+    logging.basicConfig(filename=logfile,
+                        filemode='a',
+                        format="%(asctime)s:%(levelname)s:%(message)s",
+                        level=logging.INFO)
+
+
 class LocUrl(object):
     """docstring for LocUrl."""
 

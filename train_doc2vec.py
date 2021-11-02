@@ -10,13 +10,10 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.parsing.preprocessing import remove_stopwords
 
-from queries import make_timestamp
+from queries import make_timestamp, initialize_logger
 
 output_dir = 'gensim_outputs'
 timestamp = make_timestamp()
-logging.basicConfig(filename=f'{output_dir}/train_{timestamp}.log',
-                    format="%(asctime)s:%(levelname)s:%(message)s",
-                    level=logging.INFO)
 
 NEWSPAPER_DIR_DEFAULT = 'newspapers'
 
@@ -62,11 +59,11 @@ class LocDiskIterator:
     def __init__(self, newspaper_dir):
         super(LocDiskIterator, self).__init__()
         self.newspaper_dir = newspaper_dir
-        self.newspaper_path = re.compile('{self.newspaper_dir}/([\w/-]+)/ocr.txt')
+        self.newspaper_path = re.compile(f'{self.newspaper_dir}/([\w/-]+)/ocr.txt')
 
     def __iter__(self):
         # First do newspapers
-        for newspaper in glob.iglob('{self.newspaper_dir}/**/*.txt', recursive=True):
+        for newspaper in glob.iglob(f'{self.newspaper_dir}/**/*.txt', recursive=True):
             # Expected path format: 'newspapers/lccn/yyyy/mm/dd/ed-x/seq-x/ocr.txt'
             tag = self.newspaper_path.match(newspaper).group(1)
             with open(newspaper, 'r') as f:
@@ -151,7 +148,12 @@ if __name__ == '__main__':
     parser.add_argument('--newspaper_dir',
                         help='directory containing newspaper files',
                         default=NEWSPAPER_DIR_DEFAULT)
+    parser.add_argument('--logfile',
+                        help='name of log file',
+                        default=f'{output_dir}/train_{timestamp}.log')
     options = parser.parse_args()
+
+    initialize_logger(options.logfile)
 
     model = Doc2Vec(vector_size=50, min_count=2, epochs=40)
     model.build_vocab(LocCorpus(options.newspaper_dir))

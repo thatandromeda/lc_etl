@@ -2,13 +2,16 @@
 
 from argparse import ArgumentParser
 import csv
+import logging
 from pathlib import Path
 
 import gensim
 import numpy as np
 import pandas as pd
 import umap.umap_ as umap
-import umap.plot
+# import umap.plot
+
+from queries import initialize_logger
 
 OUTPUT_DIR = 'viz'
 
@@ -18,6 +21,7 @@ def file_prefix():
     return Path(options.model).name
 
 def make_embedding(model):
+    logging.info('Generating embedding...')
     umap_args = {'n_components': 2, 'metric': 'cosine'}
     # fit() returns an embedding (of type array) and a dict of auxiliary data;
     # fit_transform() returns just the embedding, normalized. I think.
@@ -36,11 +40,11 @@ def make_embedding(model):
 #       labels.append(t.department.first().name)
 #     except:
 #       labels.append('No Department')
-def show_plot(model, embedding):
-    hover_data = pd.DataFrame({'index': np.arange(len(model.dv)), 'label': model.dv.index_to_key})
-    umap.plot.output_file(f'{file_prefix()}_plot')
-    p = umap.plot.interactive(embedding, hover_data=hover_data, point_size=2) # fancy
-    umap.plot.show(p)
+# def show_plot(model, embedding):
+#     hover_data = pd.DataFrame({'index': np.arange(len(model.dv)), 'label': model.dv.index_to_key})
+#     umap.plot.output_file(f'{file_prefix()}_plot')
+#     p = umap.plot.interactive(embedding, hover_data=hover_data, point_size=2) # fancy
+#     umap.plot.show(p)
 
 # Where we're at:
 # the hover data is too big to display
@@ -51,6 +55,7 @@ def write_to_tsv(embedding):
     """
     Output coordinates as a TSV file, suitable for use by deepscatter.
     """
+    logging.info('Writing embedding coordinates')
     output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix()}_coordinates.csv')
     np.savetxt(output_path, embedding, delimiter=",",
                header="x\ty", comments='')
@@ -63,6 +68,7 @@ def write_metadata(model):
     Note that this implicitly relies on Python list ordering -- the points
     represented in write_to_tsv must be in the same order!
     """
+    logging.info('Writing embedding metadata')
     header = ['lccn']
 
     output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix()}_metadata.csv')
@@ -80,7 +86,10 @@ def write_metadata(model):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--model', help='path/to/filename of model to load')
+    parser.add_argument('--logfile', default="embedding.log")
     options = parser.parse_args()
+
+    initialize_logger(options.logfile)
 
     model = gensim.models.Doc2Vec.load(options.model)
     embedding = make_embedding(model)

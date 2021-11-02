@@ -8,20 +8,17 @@ from pathlib import Path
 import re
 import shutil
 
-from queries import http_adapter, make_timestamp
+from queries import http_adapter, make_timestamp, initialize_logger
 
 http = http_adapter()
 OUTPUT_DIR = 'metadata'
 Path(OUTPUT_DIR).mkdir(exist_ok=True)
-logging.basicConfig(filename=f'{OUTPUT_DIR}/{make_timestamp()}.log',
-                    format="%(asctime)s:%(levelname)s:%(message)s",
-                    level=logging.INFO)
 
 def get_collections(json):
     try:
         options = json['partof']
         return [
-            x['title'] for x in item_json['partof'] if '/collections/' in x['url']
+            x['title'] for x in options if '/collections/' in x['url']
         ]
     except KeyError:
         return None
@@ -157,9 +154,24 @@ def fetch():
 
         next(identifiers)   # skip header row
         for idx in identifiers:
-            print(f'Processing {idx}...')
             idx = idx.strip()
+            logging.info(f'Processing {idx}...')
+
+            # ChronAm identifiers are whole directory structures, with the lccn for
+            # the entire newspaper run at the top, followed by subdirectories for
+            # dates and editions. We want to preserve this whole structure so that
+            # different images from the same newspaper can have different metadata.
+            # This means we need to ensure that the whole filepath exists, even
+            # though we don't know how long it is.
+            output_path = Path(OUTPUT_DIR) / idx
+
+            # If we have already downloaded this metadata, don't bother doing
+            # it again.
+            if Path(output_path).is_file():
+                continue
+
             try:
+                logging.info(f'Downloading new data for {idx}')
                 if is_chronam(idx):
                     identifier = identifier_from_chronam(idx)
                     item_json = get_item_json(identifier)
@@ -173,16 +185,9 @@ def fetch():
                     metadata = add_results_info(metadata, item_json)
                     results_metadata[idx] = metadata
             except:
-                logging.exception("Couldn't get metadata")
+                logging.exception(f"Couldn't get metadata for {idx}")
                 continue
 
-            # ChronAm identifiers are whole directory structures, with the lccn for
-            # the entire newspaper run at the top, followed by subdirectories for
-            # dates and editions. We want to preserve this whole structure so that
-            # different images from the same newspaper can have different metadata.
-            # This means we need to ensure that the whole filepath exists, even
-            # though we don't know how long it is.
-            output_path = Path(OUTPUT_DIR) / idx
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with output_path.open('w') as f:
                 json.dump(results_metadata, f)
@@ -192,6 +197,9 @@ if __name__ == '__main__':
     parser.add_argument('--identifiers',
                         help='path to metadata file output by embedding.py',
                         required=True)
+    parser.add_argument('--logfile', default="fetch_metadata.log")
     options = parser.parse_args()
+
+    initialize_logger(options.logfile)
 
     fetch()
