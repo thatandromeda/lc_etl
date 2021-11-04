@@ -107,6 +107,7 @@ def paginate_search(url):
     next_page = True
     page = 1    # LC pagination is 1-indexed
     http = http_adapter()
+    emergency_exit = 0
 
     while next_page:
         current_url = f'{url}&sp={page}&c={PAGE_LENGTH}'
@@ -114,11 +115,20 @@ def paginate_search(url):
             response = http.get(current_url, timeout=TIMEOUT).json()
         except json.decoder.JSONDecodeError as e:
             logging.exception(f'Could not decode {current_url}')
+            # Sometimes this error is intermittent -- we get a 5xx page instead
+            # of JSON.
+            emergency_exit += 1
+            time.sleep(180)
+            continue
         except requests.exceptions.ConnectionError:
             logging.exception(f'Timeout for {current_url}; waiting')
             time.sleep(180)
-            # this is no longer guaranteed to finish
+            emergency_exit += 1
             continue
+
+        if emergency_exit >= 10:
+            logger.warning('Quit search early due to excessive failures')
+            break
 
         page += 1
         next_page = response['pagination']['next']  # Will be null when done
