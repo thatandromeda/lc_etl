@@ -20,12 +20,6 @@ initialize_logger(options.logfile)
 
 header = ['x', 'y'] + METADATA_ORDER
 
-def extract_dict(identifier, metadata):
-    if is_chronam(identifier):
-        return metadata[identifier_from_chronam(identifier)]
-
-    return metadata[identifier]
-
 logging.info('Starting to zip data')
 with open(options.output, 'w', newline='') as outfile:
     csv_output = csv.writer(outfile, delimiter=',')
@@ -41,8 +35,7 @@ with open(options.output, 'w', newline='') as outfile:
                 with open(OUTPUT_DIR / Path(identifier)) as f:
                     raw_item_metadata = json.load(f)
 
-                item_metadata = extract_dict(identifier, raw_item_metadata)
-                item_metadata = [item_metadata.get(key) for key in METADATA_ORDER]
+                item_metadata = [raw_item_metadata.get(key) for key in METADATA_ORDER]
             except (KeyError, json.JSONDecodeError) as e:
                 # Sometimes we didn't successfully fetch the metadata.
                 logging.exception(f"Couldn't zip metadata for {identifier}")

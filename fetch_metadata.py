@@ -14,6 +14,18 @@ http = http_adapter()
 OUTPUT_DIR = 'metadata'
 Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
+STATES = {
+    'Alabama', 'Alaska', 'Arizona', 'Arkansas' 'California', 'Colorado',
+    'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
+    'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine',
+    'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi',
+    'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
+    'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio',
+    'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
+    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia',
+    'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+}
+
 def get_collections(json):
     try:
         options = json['partof']
@@ -45,6 +57,10 @@ def get_locations(json):
     except KeyError:
         return None
 
+
+def get_states(locations):
+    standardized_locations = [location.title() for location in locations]
+    return list(STATES.intersection(set(standardized_locations)))
 
 def parse_identifier(item):
     return item.parts[-1]
@@ -80,7 +96,7 @@ def get_item_json(identifier):
 # are being written correctly).
 METADATA_ORDER = [
     'collections', 'title', 'subjects', 'subject_headings', 'locations', 'date',
-    'url', 'image_url', 'description'
+    'url', 'image_url', 'description', 'states'
 ]
 def parse_item_metadata(item_json):
     metadata = {}
@@ -93,6 +109,7 @@ def parse_item_metadata(item_json):
     metadata['subject_headings'] = item_json.get('subject_headings')  # list of strings
     metadata['locations'] = get_locations(item_json)
     metadata['description'] = item_json.get('description')
+    metadata['states'] = get_states(metadata['locations'])
 
     return metadata
 
@@ -102,7 +119,10 @@ def add_newspaper_info(metadata, idx):
     url = url_from_chronam_identifier(idx)
     metadata['url'] = url    # string
     # string; guessing rather than API round-tripping; seems usually right
-    metadata['image_url'] = f'{url}.jp2'
+    # metadata['image_url'] = f'{url}.jp2'
+    # The jp2 URL triggers a download. It doesn't work as a hotlink because it
+    # yields a broken image. Let's just not use it for the moment.
+    metadata['image_url'] = None
     return metadata
 
 
@@ -150,9 +170,8 @@ def date_from_chronam_identifier(idx):
 
 def fetch():
     with open(options.identifiers, 'r') as identifiers:
-        results_metadata = {}
-
         next(identifiers)   # skip header row
+
         for idx in identifiers:
             idx = idx.strip()
             logging.info(f'Processing {idx}...')
@@ -177,20 +196,18 @@ def fetch():
                     item_json = get_item_json(identifier)
                     metadata = parse_item_metadata(item_json)
                     metadata = add_newspaper_info(metadata, idx)
-                    results_metadata[identifier] = metadata
                 else:
                     # identifier == idx
                     item_json = get_item_json(idx)
                     metadata = parse_item_metadata(item_json)
                     metadata = add_results_info(metadata, item_json)
-                    results_metadata[idx] = metadata
             except:
                 logging.exception(f"Couldn't get metadata for {idx}")
                 continue
 
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with output_path.open('w') as f:
-                json.dump(results_metadata, f)
+                json.dump(metadata, f)
 
 if __name__ == '__main__':
     parser = ArgumentParser()

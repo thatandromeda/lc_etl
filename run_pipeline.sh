@@ -41,4 +41,4 @@ echo "Preparing metadata..."
 pipenv run python zip_csv.py --coordinates=viz/${model_name}_coordinates.csv --identifiers=viz/${model_name}_metadata.csv --output=viz/labeled_${model_name}.csv --logfile=$LOGFILE
 
 echo "Preparing tiles..."
-quadfeather --files=viz/labeled_${model_name}.csv --tile_size=20000 --destination viz/${model_name}_tiles
+quadfeather --files=viz/labeled_${model_name}.csv --tile_size=10000 --destination viz/${model_name}_tiles
