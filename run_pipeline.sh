@@ -15,9 +15,9 @@ set -e
 FILTER_DIR="filtered_newspapers"
 
 # Back up previous data run.
-mv newspapers old_newspapers
-mv filtered_newspapers old_filtered_newspapers
-mv results old_results
+[ -f newspapers ] && mv newspapers old_newspapers
+[ -f filtered_newspapers ] && mv filtered_newspapers old_filtered_newspapers
+[ -f results ] && mv results old_results
 
 echo "Downloading data set..."
 pipenv run python dataset.py --dataset_path=$1 --logfile=$LOGFILE
