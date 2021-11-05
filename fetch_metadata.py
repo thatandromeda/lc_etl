@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 import re
 import shutil
+from time import sleep
 
 from queries import http_adapter, make_timestamp, initialize_logger
 
@@ -62,6 +63,7 @@ def get_states(locations):
     standardized_locations = [location.title() for location in locations]
     return list(STATES.intersection(set(standardized_locations)))
 
+
 def parse_identifier(item):
     return item.parts[-1]
 
@@ -76,6 +78,7 @@ def get_item_json(identifier):
         item_json = CACHE[identifier]
     else:
         response = http.get(f'https://www.loc.gov/item/{identifier}/?fo=json')
+        sleep(0.5)  # rate limits
         try:
             item_json = response.json()['item']
             CACHE[identifier] = item_json
