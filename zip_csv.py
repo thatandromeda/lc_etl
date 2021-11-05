@@ -40,6 +40,9 @@ with open(options.output, 'w', newline='') as outfile:
                 # Sometimes we didn't successfully fetch the metadata.
                 logging.exception(f"Couldn't zip metadata for {identifier}")
                 continue
+            except FileNotFoundError:
+                logging.exception(f"No metadata file present for {identifier}")
+                continue
 
             item_metadata = coordinate.strip().split(',') + item_metadata
 
