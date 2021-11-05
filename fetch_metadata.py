@@ -173,6 +173,7 @@ def fetch():
         next(identifiers)   # skip header row
 
         for idx in identifiers:
+            results_metadata = {}
             idx = idx.strip()
             logging.info(f'Processing {idx}...')
 
@@ -196,18 +197,20 @@ def fetch():
                     item_json = get_item_json(identifier)
                     metadata = parse_item_metadata(item_json)
                     metadata = add_newspaper_info(metadata, idx)
+                    results_metadata[identifier] = metadata
                 else:
                     # identifier == idx
                     item_json = get_item_json(idx)
                     metadata = parse_item_metadata(item_json)
                     metadata = add_results_info(metadata, item_json)
+                    results_metadata[idx] = metadata
             except:
                 logging.exception(f"Couldn't get metadata for {idx}")
                 continue
 
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with output_path.open('w') as f:
-                json.dump(metadata, f)
+                json.dump(results_metadata, f)
 
 if __name__ == '__main__':
     parser = ArgumentParser()
