@@ -14,6 +14,7 @@ pandas = "*"
 umap-learn = {extras = ["plot"], version = "*"}
 install = "*"
 quadfeather = {git = "https://github.com/bmschmidt/quadfeather"}
+responses = "*"
 
 [requires]
 python_version = "3.8"
