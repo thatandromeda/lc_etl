@@ -21,7 +21,11 @@ TIMEOUT = 3
 subprocess.call('mkdir results', shell=True)
 
 def http_adapter():
-    # Get around intermittent 500s or whatever.
+    # Get around intermittent 500s or whatever. Unfortunately this opens a
+    # socket that stays open, throwing ResourceWarnings during test. If you call
+    # the adapter with a context manager, the session will close:
+    # with http as h:
+    #    response = h.get(whatever)
     retry = requests.packages.urllib3.util.retry.Retry(
         status=3, status_forcelist=[429, 500, 503]
     )

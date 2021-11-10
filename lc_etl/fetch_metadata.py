@@ -11,10 +11,15 @@ from time import sleep
 
 from .utilities import http_adapter, make_timestamp, initialize_logger
 
-http = http_adapter()
-OUTPUT_DIR = 'metadata'
-Path(OUTPUT_DIR).mkdir(exist_ok=True)
+# We need this later in zip_csv to write the csv correctly. Don't deviate from
+# this order (or if you do, add some handling in zip_csv to make sure items
+# are being written correctly).
+METADATA_ORDER = [
+    'collections', 'title', 'subjects', 'subject_headings', 'locations', 'date',
+    'url', 'image_url', 'description', 'states'
+]
 
+OUTPUT_DIR = 'metadata'
 STATES = {
     'Alabama', 'Alaska', 'Arizona', 'Arkansas' 'California', 'Colorado',
     'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
@@ -27,138 +32,184 @@ STATES = {
     'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
 }
 
-def get_collections(json):
-    try:
-        options = json['partof']
-        return [
-            x['title'] for x in options if '/collections/' in x['url']
-        ]
-    except KeyError:
-        return None
+class BaseMetadataFetcher(object):
+    """Parent class containing shared logic for retrieving metadata for both
+    ChronAm and regular LOC items. Logic specific to one object type belongs
+    in subclasses."""
+
+    newspaper_pattern = re.compile('(\w+)/\d{4}/\d{2}/\d{2}/ed-\d/seq-\d')
+    date_pattern = re.compile(r'(?P<year>\d{4})/(?P<month>\d{2})/(?P<day>\d{2})')
+
+    def __init__(self):
+        self.http = http_adapter()
+        self.json = None
+        self.cache = {}
+        self.identifier = None
+        self.metadata = {}
+
+        Path(OUTPUT_DIR).mkdir(exist_ok=True)
+
+    @classmethod
+    def is_chronam(cls, idx):
+        return bool(cls.newspaper_pattern.match(idx))
 
 
-# Unlike other get_metadata functions, this returns only the first rather than
-# every image_url. I think they are just different-size variants of the same
-# image, and there is no particular reason to prefer one over the other at
-# this time.
-def get_image(json):
-    try:
-        image_urls = json['image_url']
-        return image_urls[0]
-    except KeyError:
-        return None
-
-
-def get_locations(json):
-    try:
-        locations = json['location']
-        # Deduplicate; the API documents explicitly warn this value may
-        # contain duplicates
-        return list(set(locations))
-    except KeyError:
-        return None
-
-
-def get_states(locations):
-    standardized_locations = [location.title() for location in locations]
-    return list(STATES.intersection(set(standardized_locations)))
-
-
-def parse_identifier(item):
-    return item.parts[-1]
-
-
-CACHE = {}
-def get_item_json(identifier):
-    # Get the item as json
-    if identifier in CACHE:
-        # Different editions/pages of a newspaper have the same identifier,
-        # so let's cache those results rather than hitting the server a
-        # lot of times.
-        item_json = CACHE[identifier]
-    else:
-        response = http.get(f'https://www.loc.gov/item/{identifier}/?fo=json')
-        sleep(0.5)  # rate limits
+    def get_collections(self):
         try:
-            item_json = response.json()['item']
-            CACHE[identifier] = item_json
-        except (KeyError, json.decoder.JSONDecodeError):
-            with open('failed_calls.txt', 'a') as f:
-                f.write(f"{identifier}\n")
+            options = self.json['partof']
+            return [
+                x['title'] for x in options if '/collections/' in x['url']
+            ]
+        except KeyError:
             return None
 
-        if not item_json:
-            with open('failed_calls.txt', 'a') as f:
-                f.write(f"{identifier}\n")
+
+    # Unlike other get_metadata functions, this returns only the first rather than
+    # every image_url. I think they are just different-size variants of the same
+    # image, and there is no particular reason to prefer one over the other at
+    # this time.
+    def get_image(self):
+        try:
+            image_urls = self.json['image_url']
+            return image_urls[0]
+        except KeyError:
             return None
 
-    return item_json
 
-# We need this later in zip_csv to write the csv correctly. Don't deviate from
-# this order (or if you do, add some handling in zip_csv to make sure items
-# are being written correctly).
-METADATA_ORDER = [
-    'collections', 'title', 'subjects', 'subject_headings', 'locations', 'date',
-    'url', 'image_url', 'description', 'states'
-]
-def parse_item_metadata(item_json):
-    metadata = {}
-
-    # Get the metadata. Any of these may be None.
-    metadata['collections'] = get_collections(item_json)    # list of strings
-    metadata['title'] = item_json.get('title')              # string
-    # dict of 'subject': 'url to subject search' pairs.
-    metadata['subjects'] = item_json.get('subjects')
-    metadata['subject_headings'] = item_json.get('subject_headings')  # list of strings
-    metadata['locations'] = get_locations(item_json)
-    metadata['description'] = item_json.get('description')
-    metadata['states'] = get_states(metadata['locations'])
-
-    return metadata
+    def get_locations(self):
+        try:
+            locations = self.json['location']
+            # Deduplicate; the API documents explicitly warn this value may
+            # contain duplicates
+            return list(set(locations))
+        except KeyError:
+            return []
 
 
-def add_newspaper_info(metadata, idx):
-    metadata['date'] = date_from_chronam_identifier(idx)    # YYYY-MM-DD
-    url = url_from_chronam_identifier(idx)
-    metadata['url'] = url    # string
-    # string; guessing rather than API round-tripping; seems usually right
-    # metadata['image_url'] = f'{url}.jp2'
-    # The jp2 URL triggers a download. It doesn't work as a hotlink because it
-    # yields a broken image. Let's just not use it for the moment.
-    metadata['image_url'] = None
-    return metadata
+    def get_states(self):
+        locations = self.metadata['locations']
+        standardized_locations = [location.title() for location in locations]
+        return list(STATES.intersection(set(standardized_locations)))
 
 
-def add_results_info(metadata, item_json):
-    metadata['date'] = item_json.get('date')                # YYYY or YYYY-MM-DD
-    metadata['url'] = item_json.get('url')                  # string
-    metadata['image_url'] = get_image(item_json)            # string
-    return metadata
+    def parse_identifier(item):
+        return item.parts[-1]
 
 
-newspaper_pattern = re.compile('(\w+)/\d{4}/\d{2}/\d{2}/ed-\d/seq-\d')
-def is_chronam(idx):
-    return bool(newspaper_pattern.match(idx))
+    def set_item_json(self):
+        # Get the item as json
+        if self.identifier in self.cache:
+            # Different editions/pages of a newspaper have the same identifier,
+            # so let's cache those results rather than hitting the server a
+            # lot of times.
+            item_json = self.cache[self.identifier]
+        else:
+            with self.http as h:
+                response = h.get(f'https://www.loc.gov/item/{self.identifier}/?fo=json')
+            sleep(0.5)  # rate limits
+            try:
+                item_json = response.json()['item']
+                self.cache[self.identifier] = item_json
+            except (KeyError, json.decoder.JSONDecodeError):
+                with open('failed_calls.txt', 'a') as f:
+                    f.write(f"{self.identifier}\n")
+
+            if not item_json:
+                with open('failed_calls.txt', 'a') as f:
+                    f.write(f"{self.identifier}\n")
+
+        self.json = item_json
 
 
-def identifier_from_chronam(idx):
-    return newspaper_pattern.match(idx).group(1).strip()
+    def parse_item_metadata(self):
+        # Get the metadata. Any of these may be None.
+        self.metadata['collections'] = self.get_collections()    # list of strings
+        self.metadata['title'] = self.json.get('title')              # string
+        # dict of 'subject': 'url to subject search' pairs.
+        self.metadata['subjects'] = self.json.get('subjects')
+        self.metadata['subject_headings'] = self.json.get('subject_headings')  # list of strings
+        self.metadata['locations'] = self.get_locations()
+        self.metadata['description'] = self.json.get('description')
+        self.metadata['states'] = self.get_states()
 
 
-date_pattern = re.compile(r'(?P<year>\d{4})/(?P<month>\d{2})/(?P<day>\d{2})')
-def url_from_chronam_identifier(idx):
-    # We expect things like sn85025202/1865/01/14/ed-1/seq-2 .
-    improved_idx = re.sub(
-        date_pattern,
-        r'\g<year>-\g<month>-\g<day>',
-        idx,
-    )
-    return f'https://chroniclingamerica.loc.gov/lccn/{improved_idx}'
+    def fetch(self):
+        self.set_identifier()
+        self.set_item_json()
+        self.parse_item_metadata()
 
 
-def date_from_chronam_identifier(idx):
-    date_matches = date_pattern.search(idx)
-    return f'{date_matches.group("year")}-{date_matches.group("month")}-{date_matches.group("day")}'
+class ChronAmMetadataFetcher(BaseMetadataFetcher):
+    """Contains logic for retriving metadata which is specific to ChronAm
+    objects."""
+
+
+    def __init__(self, cache, idx):
+        super(ChronAmMetadataFetcher, self).__init__()
+        self.cache = cache
+        self.idx = idx
+
+
+    def add_newspaper_info(self):
+        self.metadata['date'] = self.date_from_chronam_identifier()    # YYYY-MM-DD
+        url = self.url_from_chronam_identifier()
+        self.metadata['url'] = url    # string
+        # string; guessing rather than API round-tripping; seems usually right
+        # metadata['image_url'] = f'{url}.jp2'
+        # The jp2 URL triggers a download. It doesn't work as a hotlink because it
+        # yields a broken image. Let's just not use it for the moment.
+        self.metadata['image_url'] = None
+
+
+    def set_identifier(self):
+        self.identifier = self.newspaper_pattern.match(self.idx).group(1).strip()
+
+
+    def date_from_chronam_identifier(self):
+        date_matches = self.date_pattern.search(self.idx)
+        return f'{date_matches.group("year")}-{date_matches.group("month")}-{date_matches.group("day")}'
+
+
+    def url_from_chronam_identifier(self):
+        # We expect things like sn85025202/1865/01/14/ed-1/seq-2 .
+        improved_idx = re.sub(
+            self.date_pattern,
+            r'\g<year>-\g<month>-\g<day>',
+            self.idx,
+        )
+        return f'https://chroniclingamerica.loc.gov/lccn/{improved_idx}'
+
+
+    def fetch(self):
+        super(ChronAmMetadataFetcher, self).fetch()
+        self.add_newspaper_info()
+        return {self.identifier: self.metadata}
+
+
+class ItemMetadataFetcher(BaseMetadataFetcher):
+    """Contains logic for retriving metadata which is specific to ordinary LOC
+    objects."""
+
+    def __init__(self, cache, idx):
+        super(ItemMetadataFetcher, self).__init__()
+        self.cache = cache
+        self.idx = idx
+
+
+    def add_results_info(self):
+        self.metadata['date'] = self.json.get('date')            # YYYY or YYYY-MM-DD
+        self.metadata['url'] = self.json.get('url')              # string
+        self.metadata['image_url'] = self.get_image()            # string
+
+
+    def set_identifier(self):
+        self.identifier = self.idx
+
+
+    def fetch(self):
+        super(ItemMetadataFetcher, self).fetch()
+        self.add_results_info()
+        return {self.identifier: self.metadata}
 
 
 # iterate through results
@@ -172,6 +223,8 @@ def date_from_chronam_identifier(idx):
 #   - why is chronam date not matching
 
 def fetch(options):
+    cache = {}
+
     with open(options.identifiers, 'r') as identifiers:
         next(identifiers)   # skip header row
 
@@ -195,25 +248,17 @@ def fetch(options):
 
             try:
                 logging.info(f'Downloading new data for {idx}')
-                if is_chronam(idx):
-                    identifier = identifier_from_chronam(idx)
-                    item_json = get_item_json(identifier)
-                    metadata = parse_item_metadata(item_json)
-                    metadata = add_newspaper_info(metadata, idx)
-                    results_metadata[identifier] = metadata
+                if BaseMetadataFetcher.is_chronam(idx):
+                    result = ChronAmMetadataFetcher(cache, idx).fetch()
                 else:
-                    # identifier == idx
-                    item_json = get_item_json(idx)
-                    metadata = parse_item_metadata(item_json)
-                    metadata = add_results_info(metadata, item_json)
-                    results_metadata[idx] = metadata
+                    result = ItemMetadataFetcher(cache, idx).fetch()
             except:
                 logging.exception(f"Couldn't get metadata for {idx}")
                 continue
 
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with output_path.open('w') as f:
-                json.dump(results_metadata, f)
+                json.dump(result, f)
 
 
 def parse_args():
