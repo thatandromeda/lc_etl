@@ -150,6 +150,11 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
         self.idx = idx
 
 
+    @classmethod
+    def extract_identifier(cls, idx):
+        return cls.newspaper_pattern.match(idx).group(1).strip()
+
+
     def add_newspaper_info(self):
         self.metadata['date'] = self.date_from_chronam_identifier()    # YYYY-MM-DD
         url = self.url_from_chronam_identifier()
@@ -162,7 +167,7 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
 
 
     def set_identifier(self):
-        self.identifier = self.newspaper_pattern.match(self.idx).group(1).strip()
+        self.identifier = self.extract_identifier(self.idx)
 
 
     def date_from_chronam_identifier(self):
