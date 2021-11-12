@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import logging
 from pathlib import Path
 
-from .utilities import initialize_logger
+from utilities import initialize_logger
 
 # This cutoff was determined by:
 # - looking at a random sample of 100 files

@@ -4,8 +4,8 @@ import json
 import logging
 from pathlib import Path
 
-from .fetch_metadata import METADATA_ORDER, OUTPUT_DIR, ChronAmMetadataFetcher
-from .utilities import initialize_logger
+from fetch_metadata import METADATA_ORDER, OUTPUT_DIR, ChronAmMetadataFetcher
+from utilities import initialize_logger
 
 Path(OUTPUT_DIR).mkdir(exist_ok=True)
 

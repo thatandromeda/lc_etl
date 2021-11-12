@@ -17,6 +17,7 @@ def make_timestamp():
 
 PAGE_LENGTH = 500
 TIMEOUT = 3
+BASE_DIR = 'lc_etl'
 
 subprocess.call('mkdir results', shell=True)
 

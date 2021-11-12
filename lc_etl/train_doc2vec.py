@@ -10,12 +10,12 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.parsing.preprocessing import remove_stopwords
 
-from .utilities import make_timestamp, initialize_logger
+from utilities import make_timestamp, initialize_logger, BASE_DIR
 
-output_dir = 'gensim_outputs'
+output_dir = f'{BASE_DIR}/gensim_outputs'
 timestamp = make_timestamp()
 
-NEWSPAPER_DIR_DEFAULT = 'newspapers'
+NEWSPAPER_DIR_DEFAULT = f'{BASE_DIR}/newspapers'
 
 # TODO
 # definitely want some kind of stemming, to deal with things like acre/acres,

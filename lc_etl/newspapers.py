@@ -8,8 +8,8 @@ import shutil
 import subprocess
 from time import sleep
 
-from .filter_ocr import filter_for_quality
-from .utilities import http_adapter, check_for_disk_space
+from filter_ocr import filter_for_quality
+from utilities import http_adapter, check_for_disk_space, BASE_DIR
 
 newspapers_list = ["American Freedman", "Annual Cyclopedia",
     "Atlanta Constitution", "Atlantic Monthly", "Augusta Loyal Georgian",
@@ -58,11 +58,11 @@ def create_lccn_to_batch():
 
 def get_lccn_to_batch():
     try:
-        with open('lccn_to_batch', 'rb') as f:
+        with open(f'{BASE_DIR}/lccn_to_batch', 'rb') as f:
             lccn_to_batch = pickle.load(f)
     except:
         lccn_to_batch = create_lccn_to_batch()
-        with open('lccn_to_batch', 'wb') as f:
+        with open(f'{BASE_DIR}/lccn_to_batch', 'wb') as f:
             pickle.dump(lccn_to_batch, f)
 
     return lccn_to_batch
@@ -181,22 +181,22 @@ def restrict_to_ocred_batches():
 
 def identify_chronam_downloads():
     try:
-        with open('chronam_batches_needed', 'rb') as f:
+        with open(f'{BASE_DIR}/chronam_batches_needed', 'rb') as f:
             final_batches = pickle.load(f)
-        with open('chronam_urls_needed', 'rb') as f:
+        with open(f'{BASE_DIR}/chronam_urls_needed', 'rb') as f:
             final_urls = pickle.load(f)
     except:
         final_batches, final_urls = restrict_to_ocred_batches()
-        with open('chronam_batches_needed', 'wb') as f:
+        with open(f'{BASE_DIR}/chronam_batches_needed', 'wb') as f:
             pickle.dump(final_batches, f)
-        with open('chronam_urls_needed', 'wb') as f:
+        with open(f'{BASE_DIR}/chronam_urls_needed', 'wb') as f:
             pickle.dump(final_urls, f)
 
     return final_batches, final_urls
 
 # ~*~*~*~*~*~*~*~*~*~*~*~*~ fetch batches ~*~*~*~*~*~*~*~*~*~*~*~*~ #
-tmpzip = 'tmpzip.zip'
-newspaper_dir = 'newspapers'
+tmpzip = f'{BASE_DIR}/tmpzip.zip'
+newspaper_dir = f'{BASE_DIR}/newspapers'
 
 def make_newspaper_dir():
     try:
@@ -218,7 +218,7 @@ def get_batch_to_lccn():
 
 
 # The endpoint is exclusive, so this matches dates from 1865 through 1877.
-def slurp_newspapers(goal_dates=range(1865, 1878)):
+def slurp_newspapers(goal_dates=range(1865, 1878), count=None):
     make_newspaper_dir()
     batch_to_lccn = get_batch_to_lccn()
     final_batches, final_urls = identify_chronam_downloads()
@@ -229,8 +229,10 @@ def slurp_newspapers(goal_dates=range(1865, 1878)):
 
     for url in final_urls:
         total += 1
-        if total > 10:
+        # This lets us test with a small number of newspapers.
+        if total == count:
             break
+
         logging.info(f'Downloading {url}...')
         with requests.get(url, stream=True) as r:
             r.raise_for_status()

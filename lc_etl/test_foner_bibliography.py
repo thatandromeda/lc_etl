@@ -1,6 +1,6 @@
 import logging
 
-from .utilities import slurp, LocUrl
+from utilities import slurp, LocUrl
 
 # Update slurp to take a url, and build_url to be more thoughtful about what
 # can be built.

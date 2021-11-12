@@ -29,7 +29,7 @@ class TestMetadataFetching(unittest.TestCase):
             # request! Without this, it defaults to mocking the requests
             # library, and only matches on things sent in this file by
             # requests.get().
-            target="lc_etl.utilities.http_adapter"
+            target="lc_etlutilities.http_adapter"
         )
         self.responses.start()
 
@@ -229,7 +229,7 @@ class TestZipCSV(unittest.TestCase):
             # request! Without this, it defaults to mocking the requests
             # library, and only matches on things sent in this file by
             # requests.get().
-            target="lc_etl.utilities.http_adapter"
+            target="lc_etlutilities.http_adapter"
         )
         self.responses.start()
 

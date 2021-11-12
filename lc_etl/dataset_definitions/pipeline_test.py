@@ -7,3 +7,5 @@ date_filtered_collections = []
 queries = []
 
 items = []
+
+newspapers = {'count': 1}

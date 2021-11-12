@@ -2,8 +2,8 @@ from argparse import ArgumentParser
 import logging
 from pathlib import Path
 
-from .utilities import initialize_logger
-from .train_doc2vec import tokenize
+from utilities import initialize_logger
+from train_doc2vec import tokenize
 
 DICT_SOURCE = '/usr/share/dict/words'
 THRESHOLD = 0.625

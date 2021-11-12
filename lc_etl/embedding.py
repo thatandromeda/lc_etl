@@ -11,9 +11,9 @@ import pandas as pd
 import umap.umap_ as umap
 # import umap.plot
 
-from .utilities import initialize_logger
+from utilities import initialize_logger, BASE_DIR
 
-OUTPUT_DIR = 'viz'
+OUTPUT_DIR = f'{BASE_DIR}/viz'
 
 Path(f'./{OUTPUT_DIR}').mkdir(exist_ok=True)
 

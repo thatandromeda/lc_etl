@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 from locr import Fetcher
 import requests
 
-from .utilities import paginate_search, filter_results, filenamify
+from utilities import paginate_search, filter_results, filenamify
 
 def slurp_collections(collections, filter_for_dates=False):
     found = 0

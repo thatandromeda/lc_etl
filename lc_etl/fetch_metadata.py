@@ -9,7 +9,7 @@ import re
 import shutil
 from time import sleep
 
-from .utilities import http_adapter, make_timestamp, initialize_logger
+from utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
 
 # We need this later in zip_csv to write the csv correctly. Don't deviate from
 # this order (or if you do, add some handling in zip_csv to make sure items
@@ -19,7 +19,7 @@ METADATA_ORDER = [
     'url', 'image_url', 'description', 'states'
 ]
 
-OUTPUT_DIR = 'metadata'
+OUTPUT_DIR = f'{BASE_DIR}/metadata'
 STATES = {
     'Alabama', 'Alaska', 'Arizona', 'Arkansas' 'California', 'Colorado',
     'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
@@ -32,12 +32,16 @@ STATES = {
     'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
 }
 
+class NoMetadataFound(Exception):
+    pass
+
+
 class BaseMetadataFetcher(object):
     """Parent class containing shared logic for retrieving metadata for both
     ChronAm and regular LOC items. Logic specific to one object type belongs
     in subclasses."""
 
-    newspaper_pattern = re.compile('(\w+)/\d{4}/\d{2}/\d{2}/ed-\d/seq-\d')
+    newspaper_pattern = re.compile('(?:newspapers/)?(\w+)/\d{4}/\d{2}/\d{2}/ed-\d/seq-\d')
     date_pattern = re.compile(r'(?P<year>\d{4})/(?P<month>\d{2})/(?P<day>\d{2})')
 
     def __init__(self):
@@ -114,11 +118,12 @@ class BaseMetadataFetcher(object):
                 with open('failed_calls.txt', 'a') as f:
                     f.write(f"{self.identifier}\n")
 
-            if not item_json:
-                with open('failed_calls.txt', 'a') as f:
-                    f.write(f"{self.identifier}\n")
-
-        self.json = item_json
+        try:
+            self.json = item_json
+        except NameError:
+            with open('failed_calls.txt', 'a') as f:
+                f.write(f"{self.identifier}\n")
+            raise NoMetadataFound
 
 
     def parse_item_metadata(self):

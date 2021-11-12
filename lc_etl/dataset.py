@@ -4,14 +4,14 @@ import logging
 
 from locr import Fetcher
 
-from .lc_items import slurp_items
-from .lc_collections import slurp_collections
-from .newspapers import slurp_newspapers
-from .utilities import slurp, initialize_logger
+from lc_items import slurp_items
+from lc_collections import slurp_collections
+from newspapers import slurp_newspapers
+from utilities import slurp, initialize_logger, BASE_DIR
 
 
 def normalize(dataset_path):
-    return dataset_path.replace('.py', '').replace('dataset_definitions/', '')
+    return dataset_path.replace('.py', '').replace(f'{BASE_DIR}/dataset_definitions/', '')
 
 
 if __name__ == '__main__':
@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     data_def = __import__(
         f'dataset_definitions.{normalize(options.dataset_path)}',
-        fromlist=['collections', 'date_filtered_collections', 'items', 'queries']
+        fromlist=['collections', 'date_filtered_collections', 'items', 'queries', 'newspapers']
     )
 
     if data_def.collections:
@@ -55,4 +55,9 @@ if __name__ == '__main__':
         logging.info('No items defined.')
 
     logging.info('Fetching data from ChronAm...')
-    slurp_newspapers()
+    if data_def.newspapers.get('goal_dates'):
+        slurp_newspapers(goal_dates=data_def.newspapers['goal_dates'])
+    elif data_def.newspapers.get('count'):
+        slurp_newspapers(count=data_def.newspapers['count'])
+    else:
+        slurp_newspapers()

@@ -19,3 +19,6 @@ queries = [
 ]
 
 items = []
+
+# If unspecified, the default is "all newspapers from 1863 through 1877".
+newspapers = {}

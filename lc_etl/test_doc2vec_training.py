@@ -8,7 +8,7 @@ import time
 from gensim.models.doc2vec import Doc2Vec
 from gensim.models.callbacks import CallbackAny2Vec
 
-from .utilities import slurp, make_timestamp, initialize_logger
+from utilities import slurp, make_timestamp, initialize_logger
 
 import logging
 
