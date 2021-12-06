@@ -20,6 +20,8 @@ MODEL_OPTIONS = {
     'workers': 6
 }
 
+VOCABULARY = f'{IDENTIFIER}.dict'
+
 def filter_stopwords(text):
     return remove_stopwords(text)
 

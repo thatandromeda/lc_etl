@@ -126,6 +126,10 @@ class Configuration(object):
 
         model_options (dict):
             Will be used to initialize the Doc2Vec model.
+
+        vocabulary (str):
+            Load a vocabulary from a saved dict by this name. If no dict with
+            this name is found, a vocabulary will be built from scratch.
     """
 
     # Words must appear at least this often in the corpus to be used in
@@ -149,6 +153,7 @@ class Configuration(object):
         self.filter_stopwords = self._get_filter_stopwords()
         self.tokenize = self._get_tokenize()
         self.model_options = self._get_model_options()
+        self.vocabulary = self.config_file.VOCABULARY
 
 
     def _get_identifier(self):
@@ -246,6 +251,10 @@ def preprocess(config, text):
     return text
 
 
+def dictionary_name_for(config):
+    return config.vocabulary
+
+
 def make_dictionary(config):
     frequency = defaultdict(int)
     for text, _ in LocDiskIterator(config):
@@ -256,7 +265,7 @@ def make_dictionary(config):
     # This will have millions of items. Hopefully that's cool.
     filtered_freq = {k: v for k, v in frequency.items() if v > MIN_FREQUENCY }
     dictionary = corpora.Dictionary(filtered_freq)
-    dictionary.save(f'loc_{config.identifier}.dict')
+    dictionary.save(dictionary_name_for(config))
 
     return dictionary
 
@@ -270,6 +279,17 @@ def read_document(document, tokens_only=False):
     else:
         # For training data, add tags
         return gensim.models.doc2vec.TaggedDocument(tokens, [doc_id])
+
+
+def initialize_vocabulary(config, model):
+    try:
+        corpus = corpora.Dictionary.load(dictionary_name_for(config))
+        model.build_vocab_from_freq(corpus)
+    # FileNotFoundError will be thrown for an invalid filename; AttributeError
+    # will be thrown if the filename is None (i.e. not defined in the config
+    # file). Either way we'll need to build the vocab from scratch.
+    except (FileNotFoundError, AttributeError):
+        model.build_vocab(LocCorpus(config))
 
 
 # train_corpus = list(read_document(lee_train_file))
@@ -295,7 +315,7 @@ if __name__ == '__main__':
     model = Doc2Vec(**config.model_options)
 
     logging.info('Building model vocabulary')
-    model.build_vocab(LocCorpus(config))
+    initialize_vocabulary(config, model)
 
     # Must re-initialize the corpus so that the iterator hasn't run off the end of
     # it!
