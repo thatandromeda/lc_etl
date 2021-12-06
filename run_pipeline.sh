@@ -2,7 +2,7 @@
 LOGFILE="pipeline_$(date +%Y%m%d_%H%M%S).log"
 BASE_DIR="lc_etl"
 
-while getopts "d:l:b:h" opt; do
+while getopts "d:l:b:c:h" opt; do
   case $opt in
       d)
         DATADEF="$OPTARG"
@@ -11,12 +11,16 @@ while getopts "d:l:b:h" opt; do
         LOGFILE="$OPTARG"
         ;;
       b)
-        ${BASE_DIR}="$OPTARG"
+        BASE_DIR="$OPTARG"
+        ;;
+      c)
+        CONFIG_FILE="$OPTARG"
         ;;
       h)
         echo "-d path/to/data/definition        (required)"
         echo "-l logfile                        (optional; has timestamped default)"
         echo "-b base directory                 (optional; defaults to lc_etl)"
+        echo "-c ML training config file        (optional)"
         echo "-h print this message and exit    (optional)"
         exit
         ;;
@@ -46,7 +50,7 @@ pipenv run python lc_etl/filter_frontmatter.py --target_dir=$FILTER_DIR --logfil
 pipenv run python lc_etl/filter_ocr.py --target_dir=$FILTER_DIR --logfile=$LOGFILE
 
 echo "Training neural net..."
-pipenv run python lc_etl/train_doc2vec.py --newspaper_dir=$FILTER_DIR --logfile=$LOGFILE
+pipenv run python lc_etl/train_doc2vec.py --config_file=${CONFIG_FILE} --logfile=$LOGFILE
 model_name=$(basename `ls -t ${BASE_DIR}/gensim_outputs/model* | head -1`)
 
 echo "Generating embedding..."
