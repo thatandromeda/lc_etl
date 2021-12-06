@@ -252,8 +252,7 @@ def slurp_newspapers(goal_dates=range(1865, 1878), count=None):
                 if int(subdir) not in goal_dates:
                     shutil.rmtree(os.path.join(newspaper_dir, output_dir, subdir))
             # We get everything in both .txt and .xml, but we only want .txt.
-            subprocess.call(f"find {BASE_DIR}/newspapers/ -type f -name '*.xml' -delete", shell=True)
-            filter_for_quality(output_dir)
+            subprocess.call(f"find {os.path.join(newspaper_dir, output_dir} -type f -name '*.xml' -delete", shell=True)
 
         subprocess.call(f'rm {tmpzip}', shell=True)
         check_for_disk_space()
