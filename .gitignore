@@ -4,6 +4,7 @@ lab_notebook/
 __pycache__
 gensim_outputs/
 results*/
+original_*/
 newspapers/
 filtered_*/
 metadata/
