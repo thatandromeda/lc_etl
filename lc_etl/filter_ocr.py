@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from utilities import initialize_logger
-from train_doc2vec import tokenize
+from train_doc2vec import Configuration
 
 DICT_SOURCE = '/usr/share/dict/words'
 THRESHOLD = 0.625
@@ -30,8 +30,9 @@ def filter_for_quality(target_dir, dict_source=DICT_SOURCE, threshold=THRESHOLD)
         with txt_file.open() as f:
             text = f.read()
 
-        # Use same tokenization behavior that the training process will use.
-        tokens = tokenize(text)
+        # Use same tokenization behavior that the training process will use by
+        # default.
+        tokens = Configuration.tokenize(text)
 
         # Set intersection with the dictionary is tempting here, but don't;
         # that would count every occurrence of (for example) "the" as a single

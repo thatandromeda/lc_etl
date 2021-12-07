@@ -53,6 +53,7 @@ class LocDiskIterator:
     def __init__(self, config):
         super(LocDiskIterator, self).__init__()
         self.newspaper_dir = config.newspaper_dir
+        self.newspaper_dir_regex = config.newspaper_dir_regex
         self.results_dir = config.results_dir
         self.newspaper_path = re.compile(f'{self.newspaper_dir}/([\w/-]+)/ocr.txt')
 
@@ -60,7 +61,14 @@ class LocDiskIterator:
         # First do newspapers
         for newspaper in glob.iglob(f'{self.newspaper_dir}/**/*.txt', recursive=True):
             # Expected path format: 'newspapers/lccn/yyyy/mm/dd/ed-x/seq-x/ocr.txt'
-            tag = self.newspaper_path.match(newspaper).group(1)
+
+            # We can't use regular expressions in glob, so we'll perform some
+            # post hoc filtering to skip anything that doesn't match our
+            # desired path.
+            if not re.search(self.newspaper_path, newspaper):
+                continue
+
+            tag = self.newspaper_path.search(newspaper).group(1)
             with open(newspaper, 'r') as f:
                 document = f.read()
 
@@ -101,8 +109,15 @@ class Configuration(object):
 
         NEWSPAPER_DIR (str):
             The directory in which to look for newspaper files, relative to the
-            project BASE_DIR. Useful if you have maintaned an original directory
-            and used a particular directory for postprocessed versions.
+            project BASE_DIR. Useful if you have maintained an original
+            directory and used a particular directory for postprocessed
+            versions.
+            This must be a _string_, suitable for shell expansion, not a regex.
+
+        NEWSPAPER_DIR_REGEX (str):
+            If you need to filter only for paths matching a particular regex,
+            do that here. This is used ONLY for filtering newspaper directories,
+            NOT for specifying where to look.
 
         RESULTS_DIR (str):
             The directory in which to look for non-newspaper files, relative to
@@ -148,6 +163,7 @@ class Configuration(object):
         self.timestamp = make_timestamp()
         self.identifier = self._get_identifier()
         self.newspaper_dir = self._get_newspaper_dir()
+        self.newspaper_dir_regex = self._get_newspaper_dir_regex()
         self.results_dir = self._get_results_dir()
         self.min_frequency = self._get_min_frequency()
         self.filter_stopwords = self._get_filter_stopwords()
@@ -168,6 +184,16 @@ class Configuration(object):
             return Path(f'{BASE_DIR}') / f'{self.config_file.NEWSPAPER_DIR}'
         except AttributeError:
             return Path(f'{BASE_DIR}') / 'filtered_newspapers'
+
+
+    def _get_newspaper_dir_regex(self):
+        try:
+            regex = self.config_file.NEWSPAPER_DIR_REGEX
+            return regex.rstrip('/')
+        # If no regex was specified, return one that matches everything (except
+        # newlines).
+        except AttributeError:
+            return '.*'
 
 
     def _get_results_dir(self):
@@ -230,8 +256,9 @@ class Configuration(object):
         return {**self.MODEL_DEFAULTS, **updates}
 
     # Most basic possible stopword filtering. It's encapsulated into a function
-    # to make it easy to swap out later.
-    def filter_stopwords(self, text):
+    # to make it easy to swap out later.'
+    @classmethod
+    def filter_stopwords(cls, text):
         return remove_stopwords(text)
 
 
@@ -239,7 +266,8 @@ class Configuration(object):
     # to make it easy to swap out later.
     # Make sure to split on any whitespace, not just spaces! This is the
     # default behavior of split.
-    def tokenize(self, text):
+    @classmethod
+    def tokenize(cls, text):
         return text.lower().split()
 
 
