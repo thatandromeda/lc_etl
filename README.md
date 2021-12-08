@@ -29,9 +29,9 @@ Workflow for getting data from LOC into a model, and transforming that model int
 This pipeline script performs the following steps, which you may also run separately:
 - `pipenv run python dataset.py` (gets the fulltext data)
 - Consider copying the newspapers to a backup directory before you run the filters on them.
-- `pipenv run python filters/frontmatter.py --target_dir=(wherever your newspapers are)`
-- `pipenv run python filters/ocr.py --target_dir=(wherever your newspapers are)`
-  - You probably want to run this as `nohup pipenv run python filters/ocr.py --target_dir=(wherever)`. It's long.
+- `pipenv run python filter_frontmatter.py --target_dir=(wherever your newspapers are)`
+- `pipenv run python filter_ocr.py --target_dir=(wherever your newspapers are)`
+  - You probably want to run this as `nohup pipenv run python filter_ocr.py --target_dir=(wherever)`. It's long.
 - `pipenv run python train_doc2vec.py` (trains the neural net)
   - `--newspaper_dir` (optional) specifies directory containing newspapers (default: `newspapers`)
 - `pipenv run python embedding.py --model=/path/to/model` (projects the neural net down to a 2d embedding)
