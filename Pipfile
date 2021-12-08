@@ -8,15 +8,17 @@ verify_ssl = true
 [packages]
 requests = "*"
 locr = "*"
-gensim = {version = "*", sys_platform = "== 'linux'"}
-pandas = "*"
-umap-learn = {extras = ["plot"], version = "*", sys_platform = "== 'linux'"}
-quadfeather = {git = "https://github.com/bmschmidt/quadfeather", sys_platform = "== 'linux'"}
+gensim = "*"
+umap-learn = {extras = ["plot"]}
+quadfeather = {git = "https://github.com/bmschmidt/quadfeather"}
 responses = "*"
-llvmlite = {version = "*", sys_platform = "== 'linux'"}
+llvmlite = "*"
 spacy = "*"
-thinc-apple-ops = {version = "*", sys_platform = "== 'darwin'"}
+# thinc-apple-ops would be great to install due to the big spacy speedup, but
+# it requires numpy >=1.21, whereas numba (a dependency of other stuff on here)
+# requires numpy <= 1.20, soooo....
 levenshtein = "*"
+pandas = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.9"

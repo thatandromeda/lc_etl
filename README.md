@@ -5,18 +5,27 @@
 - `pipenv install`
 
 ## Installation on m1
-The pipenv install will fail due to unresolved upstream issues with numpy/scipy. Instead, use pip to manually install everything in `Pipfile` (checking `Pipfile.lock` for the correct versions).
-
-For numpy/scipy (again, supply the correct versions):
+The `pipenv install` may fail due to unresolved upstream issues with numpy/scipy, and missing system dependencies. Before attempting it, manually install the following:
 
 ```
-pip install cython pybind11 pythran
-pip install --no-binary :all: --no-use-pep517 numpy
 brew install gfortran
 brew install openblas
+brew install llvm@11
+export PATH="/opt/homebrew/opt/llvm@11/bin:$PATH"
+export LDFLAGS=-L/opt/homebrew/opt/llvm@11/lib,-L/opt/homebrew/lib
+export CPPFLAGS=-I/opt/homebrew/include,-I/opt/homebrew/opt/llvm/include,-I/opt/homebrew/opt/llvm@11/include/c++/v1
+export CXX=/opt/homebrew/opt/llvm@11/bin/clang++
+export CC=/opt/homebrew/opt/llvm@11/bin/clang
+LLVM_CONFIG=/opt/homebrew/opt/llvm@11/bin/llvm-config pipenv run pip install --no-binary :all: --no-use-pep517 llvmlite
+pipenv run pip install cython pybind11 pythran
+pipenv run pip install --no-binary :all: --no-use-pep517 numpy
 export OPENBLAS=/opt/homebrew/opt/openblas/lib/
-pip install --no-binary :all: --no-use-pep517 scipy
+pipenv run pip install --no-binary :all: --no-use-pep517 scipy
 ```
+
+You may need to export additional flags, per whatever `brew` outputs on installation.
+
+Then you can `pipenv install`.
 
 # Running the data pipeline
 Workflow for getting data from LOC into a model, and transforming that model into a format that can be represented on the web:
