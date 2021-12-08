@@ -57,16 +57,19 @@ def title_words(metadata):
     if not title:
         return []
 
-    return title.lower().split(' ')
+    return [normalize(word) for word in title.split()]
 
 
 def depunctuate(text):
     return text.translate(text.maketrans('', '', string.punctuation))
 
 
+def normalize(word):
+    return depunctuate(word.lower())
+
+
 def locations(metadata):
-    locations = [loc.lower() for loc in metadata.get('locations')]
-    locations = [depunctuate(loc) for loc in locations]
+    return [normalize(loc) for loc in metadata.get('locations')]
 
 
 def get_stopwords(txt_file, target_dir, metadata_dir):
@@ -90,15 +93,13 @@ def filter(target_dir, metadata_dir):
         with open(txt_file, 'r') as f:
             text = f.read()
 
-        filtered_text = [word for word in text.split() if word not in stopwords]
+        filtered_text = [word for word in text.split() if word.lower() not in stopwords]
         # This will end up removing any newlines in the original, but I think
         # that's fine, as they should not contribute to meaning in the first
         # place.
         filtered_text = ' '.join(filtered_text)
         if count == 100:
-            print(stopwords)
-            print(text)
-            print(filtered_text)
+            logging.info(f'{count} documents filtered')
 
         with open(txt_file, 'w') as f:
             f.write(filtered_text)
