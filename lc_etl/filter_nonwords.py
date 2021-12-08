@@ -10,22 +10,35 @@
 # Might also try *dropping* places but keeping people....although like "Jefferson"...
 
 from argparse import ArgumentParser
+import logging
+from math import floor
 from pathlib import Path
 
 import gensim
+import Levenshtein
 import spacy
 
-# this is terrible but so are relative imports in python
-import sys
-import os
-sys.path.append(os.path.join(sys.path[0], '..'))
-
 from utilities import initialize_logger
+from filter_newspaper_locations import normalize
 
 GENSIM_THRESHOLD = 0.6
-LEVENSHTEIN_THRESHOLD = 2
+LEVENSHTEIN_THRESHOLD = .3
 
-def check_for_alternative(model, nlp, word):
+
+def close_enough(base_word, test_word):
+    # This will be 0 for words of 1 or 2 letters, but those are likely enough
+    # to be garbage anyway that it's fine to let them fail here.
+    allowable_distance = floor(LEVENSHTEIN_THRESHOLD * len(base_word))
+
+    # Some errors look like single-character replacements; others look like word
+    # fragmentation. Either is OK.
+    return any([
+        Levenshtein.distance(base_word, test_word) <= allowable_distance,
+        base_word in test_word
+    ])
+
+
+def check_for_alternative(model, nlp, base_word):
     """
     The goal here is to remove words that are probably OCR errors and replace
     them with a likely candidate. The hope here is that this will minimize the
@@ -40,11 +53,30 @@ def check_for_alternative(model, nlp, word):
     and seeing their similarities to the correct word (typically .65-.75). The
     Levenshtein threshold, similarly.
     """
-    options = model.wv.most_similar('word')
-    thresholded_options = [opt[0] for opt in options if opt[1] > GENSIM_THRESHOLD]
-    real_words = [word for word in thresholded_options if word in nlp.vocab.strings]
-    
-    import pdb; pdb.set_trace()
+    try:
+        options = model.wv.most_similar(base_word)
+    except Exception as e:
+        return None
+
+    similar_words = [opt[0] for opt in options if opt[1] > GENSIM_THRESHOLD]
+
+    # This has a side effect that a number of slurs which are common in the
+    # corpus are not in fact part of the NLP corpus here and will be filtered
+    # out. That's clearly a good thing mental-health-wise for me as someone
+    # viewing many examples of this function at work. Whether or not it's a
+    # good thing for accuracy of corpus handling or downstream uses is left as
+    # an exercise for the reader.
+    real_words = [word for word in similar_words if word in nlp.vocab.strings]
+    close_words = [word for word in real_words if close_enough(base_word, word)]
+
+    # As the model returned these in order by similarity, with most-similar
+    # first, and as our list transformations have been order-preserving, the
+    # first word in the list is still the most similar of the surviving options,
+    # so let's go with it.
+    try:
+        return close_words[0]
+    except IndexError:
+        return None
 
 
 def filter(target_dir, model_path):
@@ -57,23 +89,28 @@ def filter(target_dir, model_path):
     model = gensim.models.Doc2Vec.load(model_path)
 
     for txt_file in Path(target_dir).rglob('*.txt'):
-        with open(txt_file) as f:
+        with open(txt_file, 'r') as f:
             text = f.read()
 
         new_text = []
 
-        print(f'handling {txt_file}')
+        logging.info(f'Replacing nonwords in {txt_file}')
 
         for word in text.split():
+            word = normalize(word)
             # Keep things that are actually words. This includes proper nouns
             # such as place names.
             if word in nlp.vocab.strings:
-                print(f'good word: {word}')
                 new_text.append(word)
             else:
-                word = check_for_alternative(model, nlp, word)
-                if word:
-                    new_text.append(word)
+                alt_word = check_for_alternative(model, nlp, word)
+                if alt_word:
+                    new_text.append(alt_word)
+
+        filtered_text = ' '.join(new_text)
+
+        with open(txt_file, 'w') as f:
+            f.write(filtered_text)
 
 
 
