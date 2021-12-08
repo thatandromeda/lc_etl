@@ -8,13 +8,15 @@ verify_ssl = true
 [packages]
 requests = "*"
 locr = "*"
-python-levenshtein = "*"
-gensim = "*"
+gensim = {version = "*", sys_platform = "== 'linux'"}
 pandas = "*"
-umap-learn = {extras = ["plot"], version = "*"}
-quadfeather = {git = "https://github.com/bmschmidt/quadfeather"}
+umap-learn = {extras = ["plot"], version = "*", sys_platform = "== 'linux'"}
+quadfeather = {git = "https://github.com/bmschmidt/quadfeather", sys_platform = "== 'linux'"}
 responses = "*"
 llvmlite = {version = "*", sys_platform = "== 'linux'"}
+spacy = "*"
+thinc-apple-ops = {version = "*", sys_platform = "== 'darwin'"}
+levenshtein = "*"
 
 [requires]
 python_version = "3.8"
