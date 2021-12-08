@@ -46,8 +46,8 @@ pipenv run python lc_etl/dataset.py --dataset_path=$DATADEF --logfile=$LOGFILE
 
 echo "Filtering newspapers..."
 cp -r newspapers $FILTER_DIR
-pipenv run python lc_etl/filter_frontmatter.py --target_dir=$FILTER_DIR --logfile=$LOGFILE
-pipenv run python lc_etl/filter_ocr.py --target_dir=$FILTER_DIR --logfile=$LOGFILE
+pipenv run python lc_etl/filters/frontmatter.py --target_dir=$FILTER_DIR --logfile=$LOGFILE
+pipenv run python lc_etl/filters/ocr.py --target_dir=$FILTER_DIR --logfile=$LOGFILE
 
 echo "Training neural net..."
 pipenv run python lc_etl/train_doc2vec.py --config_file=${CONFIG_FILE} --logfile=$LOGFILE
