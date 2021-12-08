@@ -26,8 +26,3 @@ VOCABULARY = f'{IDENTIFIER}.dict'
 
 def filter_stopwords(text):
     return remove_stopwords(text)
-
-
-def tokenize(text):
-    text = text.translate(text.maketrans('', '', string.punctuation))
-    return text.lower().split()

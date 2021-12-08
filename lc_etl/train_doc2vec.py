@@ -5,6 +5,7 @@ from importlib import import_module
 import logging
 from pathlib import Path
 import re
+import string
 import time
 
 from gensim import corpora
@@ -268,6 +269,7 @@ class Configuration(object):
     # default behavior of split.
     @classmethod
     def tokenize(cls, text):
+        text = text.translate(text.maketrans('', '', string.punctuation))
         return text.lower().split()
 
 
