@@ -73,6 +73,9 @@ def filter_for_quality(target_dir):
 
         total_files += 1
 
+        if total_files % 100 == 0:
+            logging.info(f'{total_files} processed, {good_files} good files found ({round(100*good_files/total_files, 1)}%)')
+
         good_tokens = dictionary.intersection(tokens)
         estimator = len(good_tokens) / len(tokens)
 

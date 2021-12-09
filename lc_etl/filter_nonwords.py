@@ -1,13 +1,24 @@
-# New filter concept: make it just have words!
-# for each word in a document:
-#   if in /usr/share/dict/words, keep
-#      actually this is a problem, because that source doesn't know about 'noblest' or 'tires'
-#      use spacy or nltk
-#   if spaCy flags as a person or place, keep
-#   if it's not a word, but there is a word above some similarity threshold (AND levenshtein??), change
-#   else drop
-
-# Might also try *dropping* places but keeping people....although like "Jefferson"...
+# New filter concept: Make sure everything in the document is actually a word!
+#
+# For each word in a document:
+#   If it's a legitimate word, keep it
+#   If it's not:
+#     Find the words which are most similar in meaning, according to a
+#     previously-trained neural net
+#     Discard any below a minimum similarity threshold
+#     See if any remaining have a small Levenshtein distance (i.e. could have
+#     been produced by a handful of misrecognized characters in the OCR process)
+#     If any options remain, substitute the most similar for the word in the
+#     document
+#     Otherwise, drop the word
+#
+# This has the following salutary properties:
+# - eliminates gibberish
+# - probably replaces words with the original in-document word
+# - dramatically reduces the corpus vocabulary size, leading to much faster
+#   neural net training (4x speedup during trials)
+#
+# It will probably take almost literally forever to run.
 
 from argparse import ArgumentParser
 import logging
@@ -88,6 +99,8 @@ def filter(target_dir, model_path):
 
     model = gensim.models.Doc2Vec.load(model_path)
 
+    files_checked = 0
+
     for txt_file in Path(target_dir).rglob('*.txt'):
         with open(txt_file, 'r') as f:
             text = f.read()
@@ -112,7 +125,9 @@ def filter(target_dir, model_path):
         with open(txt_file, 'w') as f:
             f.write(filtered_text)
 
-
+        files_checked += 1
+        if files_checked % 100 == 0:
+            logging.info(f'{files_checked} files edited')
 
 if __name__ == '__main__':
     parser = ArgumentParser()
