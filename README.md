@@ -3,6 +3,7 @@
 - git clone
 - `cd lc_etl`
 - `pipenv install`
+- `python -m spacy download en_core_web_sm`
 
 ## Installation on m1
 The `pipenv install` may fail due to unresolved upstream issues with numpy/scipy, and missing system dependencies. Before attempting it, manually install the following:
