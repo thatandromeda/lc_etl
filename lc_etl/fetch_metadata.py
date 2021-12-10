@@ -164,11 +164,12 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
         self.metadata['date'] = self.date_from_chronam_identifier()    # YYYY-MM-DD
         url = self.url_from_chronam_identifier()
         self.metadata['url'] = url    # string
-        # string; guessing rather than API round-tripping; seems usually right
-        # metadata['image_url'] = f'{url}.jp2'
-        # The jp2 URL triggers a download. It doesn't work as a hotlink because it
-        # yields a broken image. Let's just not use it for the moment.
-        self.metadata['image_url'] = None
+        # This is a guess, based on contents of HTML pages,  since it isn't in
+        # the info returned by the API. The 'jp2' field triggers a download
+        # rather than providing a usable image directly.
+        # We use Path as a hack because it will do the right thing whether or
+        # not there's a trailing slash.
+        self.metadata['image_url'] = str(Path(url) / 'thumbnail.jpg')
 
 
     def set_identifier(self):
