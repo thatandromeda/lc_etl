@@ -6,6 +6,7 @@ gensim_outputs/
 results*/
 original_*/
 newspapers/
+newspapers_*/
 filtered_*/
 metadata/
 *.zip
@@ -17,3 +18,4 @@ ratings.txt
 old_*
 viz
 failed_calls.txt
+nonword_caches/
