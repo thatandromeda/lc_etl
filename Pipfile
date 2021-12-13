@@ -19,6 +19,7 @@ spacy = "*"
 # requires numpy <= 1.20, soooo....
 levenshtein = "*"
 pandas = "*"
+more-itertools = "*"
 
 [requires]
 python_version = "3.9"

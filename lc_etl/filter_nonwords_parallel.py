@@ -18,19 +18,28 @@
 # - dramatically reduces the corpus vocabulary size, leading to much faster
 #   neural net training (4x speedup during trials)
 #
-# It will probably take almost literally forever to run.
+# Unfortunately, this takes almost literally forever.  Therefore this has a
+# multiprocessing implementation, so that it can be parallelized.
+#
+# TODO: figure out how logs work with multiprocessing.
+# time: cp -r old_results multithreaded_test; run this
+# cp -r old_results multithreaded_test; run original
 
 from argparse import ArgumentParser
+import itertools
 import logging
 from math import floor
+from multiprocessing import Pool, log_to_stderr
+import os
 from pathlib import Path
 import sqlite3
 
 import gensim
 import Levenshtein
+import more_itertools
 import spacy
 
-from utilities import initialize_logger, BASE_DIR
+from utilities import BASE_DIR
 from filter_newspaper_locations import normalize
 
 GENSIM_THRESHOLD = 0.6
@@ -125,6 +134,7 @@ def check_for_alternative(db, model, nlp, base_word):
             # around the values, the parse will break when the values include
             # single quotes/apostrophes (such as the word "don't".)
             db.execute(f'INSERT INTO {DB_TABLE} VALUES ("{base_word}", "{result}")')
+            db.commit()
 
         return result
 
@@ -138,26 +148,21 @@ def get_cache(model_path):
     db_name = db_path / filename
 
     if db_name.is_file():
-        db_conn = sqlite3.connect(db_name)
-        db = db_conn.cursor()
+        db = sqlite3.connect(db_name)
     else:
-        db_conn = sqlite3.connect(db_name)
-        db = db_conn.cursor()
+        db = sqlite3.connect(db_name)
         db.execute(f"CREATE TABLE {DB_TABLE} ({DB_NONWORD}, {DB_GOOD_WORD})")
+        db.commit()
 
-    return db_conn, db
+    return db
 
 
-def _inner_filter(target_dir, db, model, nlp):
-    files_checked = 0
-
-    for txt_file in Path(target_dir).rglob('*.txt'):
+def _inner_filter(iterable, db, model, nlp):
+    for txt_file in iterable:
         with open(txt_file, 'r') as f:
             text = f.read()
 
         new_text = []
-
-        logging.info(f'Replacing nonwords in {txt_file}')
 
         for word in text.split():
             word = normalize(word)
@@ -175,17 +180,20 @@ def _inner_filter(target_dir, db, model, nlp):
         with open(txt_file, 'w') as f:
             f.write(filtered_text)
 
-        files_checked += 1
-        if files_checked % 100 == 0:
-            logging.info(f'{files_checked} files edited')
 
-
-def filter(target_dir, model_path):
+def manage_filter(iterable, model_path):
     """
     This sets up the infrastructure we'll need for filtering, but delegates the
     actual filtering to _inner_filter. This lets us ensure we've closed the db
     without making things too hard to read.
+    We need to do this inside of manage_filter because Pool processes can't
+    share data structures; they have to pickle data and send it across at an OS
+    level. However, the model and the db connection aren't picklable. Therefore
+    each process needs its own. This unfortunately increases overall memory
+    usage (carrying around n separate instances of the model isn't cheap), but
+    makes time-to-completion radically shorter.
     """
+
     try:
         nlp = spacy.load("en_core_web_sm")
     except OSError:
@@ -198,27 +206,49 @@ def filter(target_dir, model_path):
         logging.exception('No model provided; cannot continue')
         import sys; sys.exit()
 
-    db_conn, db = get_cache(model_path)
+    db = get_cache(model_path)
 
     try:
         # I'd sure like to set this up using multiprocessing, but these
         # arguments are not all picklable, and then we're sad.
-        _inner_filter(target_dir, db, model, nlp)
+        _inner_filter(iterable, db, model, nlp)
     finally:
         db.close()
-        db_conn.close()
+
+
+def num_processes(options):
+    # Default to using half of the processors if the users didn't specify.
+    desired_num = int(options.p) or floor(os.cpu_count()/2)
+    # Don't let the user exceed the cpu count.
+    return min(desired_num, os.cpu_count())
+
+
+def filter(options):
+    all_files_iterable = Path(options.target_dir).rglob('*.txt')
+
+    num = num_processes(options)
+
+    with Pool(processes=num) as pool:
+        subset_iterables = more_itertools.divide(num, all_files_iterable)
+        # The zip lets us supply 2 arguments to the manage_filter function.
+        # The first will be one of the subset_iterables (distinct for each
+        # process); the second will always be options.model_path.
+        pool.starmap(
+            manage_filter,
+            zip(subset_iterables, itertools.repeat(options.model_path))
+        )
+
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--target_dir', help='directory containing files to check')
-    parser.add_argument('--model_path', help='path to neural net to use for word similarity')
-    parser.add_argument('--logfile', default="filter_nonwords.log")
+    parser.add_argument('--target_dir', help='directory containing files to check', required=True)
+    parser.add_argument('--model_path', help='path to neural net to use for word similarity', required=True)
+    parser.add_argument('--p', help='processes to run (max is os.cpu_count() regardless of this value)')
+    parser.add_argument('--logfile', default="filter_nonwords_<id>.log")
     options = parser.parse_args()
 
-    initialize_logger(options.logfile)
-
-    filter(options.target_dir, options.model_path)
+    filter(options)
 
 # for `canton`, 2-letter changes are common (e.g. 'cautou')
 # >>> model.wv.most_similar('cautou')
