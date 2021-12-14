@@ -2,6 +2,7 @@
 # requirements stabilize a bit.
 
 from argparse import ArgumentParser
+import glob
 import json
 import logging
 from pathlib import Path
@@ -41,7 +42,7 @@ class BaseMetadataFetcher(object):
     ChronAm and regular LOC items. Logic specific to one object type belongs
     in subclasses."""
 
-    newspaper_pattern = re.compile('(?:newspapers/)?(\w+)/\d{4}/\d{2}/\d{2}/ed-\d/seq-\d')
+    newspaper_pattern = re.compile('(\w+)/\d{4}/\d{2}/\d{2}/ed-\d/seq-\d')
     date_pattern = re.compile(r'(?P<year>\d{4})/(?P<month>\d{2})/(?P<day>\d{2})')
 
     def __init__(self):
@@ -55,7 +56,7 @@ class BaseMetadataFetcher(object):
 
     @classmethod
     def is_chronam(cls, idx):
-        return bool(cls.newspaper_pattern.match(idx))
+        return bool(cls.newspaper_pattern.search(idx))
 
 
     def get_collections(self):
@@ -157,7 +158,7 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
 
     @classmethod
     def extract_identifier(cls, idx):
-        return cls.newspaper_pattern.match(idx).group(1).strip()
+        return cls.newspaper_pattern.search(idx).group(1).strip()
 
 
     def add_newspaper_info(self):
@@ -233,56 +234,99 @@ class ItemMetadataFetcher(BaseMetadataFetcher):
 #   - register handlers for the columns somewhere so you can DRY out initialize_csv and the item loop
 #   - why is chronam date not matching
 
-def fetch(options):
+
+def _inner_fetch(identifiers, overwrite):
+    """
+    Takes an iterable of LC identifiers and fetches their metadata.
+    """
     cache = {}
 
-    with open(options.identifiers, 'r') as identifiers:
-        next(identifiers)   # skip header row
+    for idx in identifiers:
+        results_metadata = {}
+        idx = idx.strip()
+        logging.info(f'Processing {idx}...')
 
-        for idx in identifiers:
-            results_metadata = {}
-            idx = idx.strip()
-            logging.info(f'Processing {idx}...')
+        # ChronAm identifiers are whole directory structures, with the lccn for
+        # the entire newspaper run at the top, followed by subdirectories for
+        # dates and editions. We want to preserve this whole structure so that
+        # different images from the same newspaper can have different metadata.
+        # This means we need to ensure that the whole filepath exists, even
+        # though we don't know how long it is.
+        output_path = Path(OUTPUT_DIR) / idx
 
-            # ChronAm identifiers are whole directory structures, with the lccn for
-            # the entire newspaper run at the top, followed by subdirectories for
-            # dates and editions. We want to preserve this whole structure so that
-            # different images from the same newspaper can have different metadata.
-            # This means we need to ensure that the whole filepath exists, even
-            # though we don't know how long it is.
-            output_path = Path(OUTPUT_DIR) / idx
+        # If we have already downloaded this metadata, don't bother doing
+        # it again.
+        if Path(output_path).is_file() and not overwrite:
+            logging.info(f'{output_path} found, not fetching')
+            continue
 
-            # If we have already downloaded this metadata, don't bother doing
-            # it again.
-            if Path(output_path).is_file():
-                continue
+        try:
+            logging.info(f'Downloading new data for {idx}')
+            if BaseMetadataFetcher.is_chronam(idx):
+                result = ChronAmMetadataFetcher(cache, idx).fetch()
+            else:
+                result = ItemMetadataFetcher(cache, idx).fetch()
+        except:
+            logging.exception(f"Couldn't get metadata for {idx}")
+            continue
 
-            try:
-                logging.info(f'Downloading new data for {idx}')
-                if BaseMetadataFetcher.is_chronam(idx):
-                    result = ChronAmMetadataFetcher(cache, idx).fetch()
-                else:
-                    result = ItemMetadataFetcher(cache, idx).fetch()
-            except:
-                logging.exception(f"Couldn't get metadata for {idx}")
-                continue
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open('w') as f:
+            json.dump(result, f)
 
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            with output_path.open('w') as f:
-                json.dump(result, f)
+
+def fetch(options):
+    """
+    Fetches metadata for ALL identifiers passed in by any of the following
+    options: identifiers, newspaper_dir, results_dir.
+    If the same identifier is found in multiple places, it will be cached
+    from the first time and not refetched.
+    """
+
+    overwrite = bool(options.overwrite)
+
+    try:
+        with open(options.identifiers, 'r') as identifiers:
+            next(identifiers)   # skip header row
+
+            _inner_fetch(identifiers, overwrite)
+    except TypeError:
+        # options.identifiers == None
+        pass
+
+    try:
+        _inner_fetch(glob.iglob(
+            f'{options.newspaper_dir}/**/ocr.txt', recursive=True
+        ), overwrite)
+    except TypeError as e:
+        pass
+
+    try:
+        _inner_fetch(glob.iglob(f'{options.results_dir}/*'), overwrite)
+    except TypeError as e:
+        pass
 
 
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument('--identifiers',
-                        help='path to metadata file output by embedding.py',
-                        required=True)
+                        help='path to metadata file output by embedding.py')
+    parser.add_argument('--newspaper_dir',
+                        help='path to newspaper files')
+    parser.add_argument('--results_dir',
+                        help='path to non-newspaper files')
     parser.add_argument('--logfile', default="fetch_metadata.log")
+    parser.add_argument('--overwrite', default=False)
+
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     options = parse_args()
+
+    if not any([options.identifiers, options.newspaper_dir, options.results_dir]):
+        print('Must provide at least one source of identifiers')
+        import sys; sys.exit()
 
     initialize_logger(options.logfile)
 
