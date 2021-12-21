@@ -21,4 +21,4 @@ queries = [
 items = []
 
 # If unspecified, the default is set by lc_etl.newspapers.slurp_newspapers.
-newspapers = {}
+newspapers = {'count': 1}

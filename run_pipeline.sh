@@ -1,6 +1,6 @@
 # Set defaults.
 LOGFILE="pipeline_$(date +%Y%m%d_%H%M%S).log"
-BASE_DIR="lc_etl"
+BASE_DIR="lc_etl/data"
 
 while getopts "d:l:b:c:h" opt; do
   case $opt in

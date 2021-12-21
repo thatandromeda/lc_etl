@@ -322,6 +322,7 @@ def initialize_vocabulary(config, model):
         model.build_vocab(LocCorpus(config))
 
 
+
 # train_corpus = list(read_document(lee_train_file))
 # test_corpus = list(read_document(lee_test_file, tokens_only=True))
 

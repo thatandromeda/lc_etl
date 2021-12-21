@@ -45,6 +45,7 @@
 
 from argparse import ArgumentParser
 import json
+import logging
 from pathlib import Path
 import string
 

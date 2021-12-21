@@ -17,7 +17,7 @@ def make_timestamp():
 
 PAGE_LENGTH = 500
 TIMEOUT = 3
-BASE_DIR = 'lc_etl'
+BASE_DIR = 'lc_etl/data'
 
 subprocess.call('mkdir results', shell=True)
 
@@ -147,7 +147,7 @@ def filenamify(result):
     name = name.split('/')
     # will strip null string after trailing slash if present
     name = [x for x in name if x]
-    return f'results/{name[-1]}'
+    return str(Path(BASE_DIR) / 'results' / name[-1])
 
 
 def jsonify(url):

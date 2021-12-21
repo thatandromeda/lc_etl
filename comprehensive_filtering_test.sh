@@ -1,13 +1,14 @@
 # Set defaults.
 LOGFILE="comprehensive_filtering.log"
-BASE_DIR="lc_etl"
-DATADEF="lc_etl/dataset_definitions/non_chronam_only.py"
+BASE_DIR="lc_etl/data"
+DATADEF="lc_etl/dataset_definitions/comprehensive_filtering_test.py"
 
 FILTER_DIR="${BASE_DIR}/newspapers_full_filtering_pipeline_test"
 RESULTS_DIR="${BASE_DIR}/results_full_filtering_pipeline_test"
 METADATA_DIR="${BASE_DIR}/metadata"
 
 MODEL_PATH="${BASE_DIR}/gensim_outputs/model_test_🎉_20211206_132918"
+CONFIG_FILE="config_files.comprehensive_filtering_test"
 
 # These were derived by looking at the indexes of Foner's and Du Bois's books
 # on Reconstruction to find single-word terms which were unusually frequent.
@@ -32,14 +33,11 @@ set -e
 
 # ------------- First: download all data & metadata we will need ------------- #
 echo "Downloading data set..."
-pipenv run python lc_etl/dataset.py --dataset_path=$DATADEF --logfile=$LOGFILE &
+pipenv run python lc_etl/dataset.py --dataset_path=$DATADEF --logfile=$LOGFILE
 
-pipenv run python lc_etl/fetch_metadata.py --newspaper_dir=$FILTER_DIR --logfile=$LOGFILE --overwrite=True &
-wait
+cp ${BASE_DIR}/results/* $RESULTS_DIR
 
-cp -r lc_etl/results $RESULTS_DIR
-
-pipenv run python lc_etl/fetch_metadata.py --results_dir=$RESULTS_DIR --logfile=$LOGFILE --overwrite=True &
+pipenv run python lc_etl/fetch_metadata.py --results_dir=$RESULTS_DIR --newspaper_dir=$NEWSPAPER_DIR --logfile=$LOGFILE --overwrite=True &
 
 
 # ------------------------------ Filter nonwords ----------------------------- #
@@ -78,7 +76,13 @@ wait
 
 # ----------------------------- Filter locations ----------------------------- #
 echo "Filtering newspaper locations..."
-pipenv run python lc_etl/filter_newspaper_locations.py --target_dir=$FILTER_DIR --metadata_dir=$METADATA_DIR--logfile=$LOGFILE
+pipenv run python lc_etl/filter_newspaper_locations.py --target_dir=$FILTER_DIR --metadata_dir=$METADATA_DIR --logfile=$LOGFILE
+
+
+# ---------------------------- Remove empty files ---------------------------- #
+find $FILTER_DIR -type f -empty -delete
+find $FILTER_DIR -mindepth 1 -type d -empty -delete
+find $RESULTS_DIR -type f -empty -delete
 
 
 # ----------------------------- Train neural net ----------------------------- #

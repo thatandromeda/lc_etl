@@ -161,6 +161,11 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
         return cls.newspaper_pattern.search(idx).group(1).strip()
 
 
+    def extract_path(self):
+        before, after = self.idx.split(self.extract_identifier(self.idx))
+        return self.idx.replace(before, '').replace('ocr.txt', '')
+
+
     def add_newspaper_info(self):
         self.metadata['date'] = self.date_from_chronam_identifier()    # YYYY-MM-DD
         url = self.url_from_chronam_identifier()
@@ -214,8 +219,17 @@ class ItemMetadataFetcher(BaseMetadataFetcher):
         self.metadata['image_url'] = self.get_image()            # string
 
 
+    @classmethod
+    def extract_identifier(cls, idx):
+        return Path(idx).name
+
+
+    def extract_path(self):
+        return self.extract_identifier(self.idx)
+
+
     def set_identifier(self):
-        self.identifier = self.idx
+        self.identifier = self.extract_identifier(self.idx)
 
 
     def fetch(self):
@@ -246,13 +260,20 @@ def _inner_fetch(identifiers, overwrite):
         idx = idx.strip()
         logging.info(f'Processing {idx}...')
 
+        if BaseMetadataFetcher.is_chronam(idx):
+            fetcher = ChronAmMetadataFetcher(cache, idx)
+        else:
+            fetcher = ItemMetadataFetcher(cache, idx)
+
+        idx_path = fetcher.extract_path()
+
         # ChronAm identifiers are whole directory structures, with the lccn for
         # the entire newspaper run at the top, followed by subdirectories for
         # dates and editions. We want to preserve this whole structure so that
         # different images from the same newspaper can have different metadata.
         # This means we need to ensure that the whole filepath exists, even
         # though we don't know how long it is.
-        output_path = Path(OUTPUT_DIR) / idx
+        output_path = Path(OUTPUT_DIR) / idx_path
 
         # If we have already downloaded this metadata, don't bother doing
         # it again.
@@ -262,10 +283,7 @@ def _inner_fetch(identifiers, overwrite):
 
         try:
             logging.info(f'Downloading new data for {idx}')
-            if BaseMetadataFetcher.is_chronam(idx):
-                result = ChronAmMetadataFetcher(cache, idx).fetch()
-            else:
-                result = ItemMetadataFetcher(cache, idx).fetch()
+            result = fetcher.fetch()
         except:
             logging.exception(f"Couldn't get metadata for {idx}")
             continue
