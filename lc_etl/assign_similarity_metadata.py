@@ -102,14 +102,17 @@ def _get_base_words(options):
     return options.base_words.split(',')
 
 
-def _get_meta_metadata(txt_file):
-    # This converts something like `newspaper_dir/lccn/path/to/file` into
-    # `lccn/path/to/file`. This simplifies accessing the metadata, even though
-    # we need the original path to access the fulltext file.
-    txt_path = Path(txt_file.replace('ocr.txt', ''))
-    relative_text_path = txt_path.relative_to(txt_path.parts[0])
-    metadata_path = Path(options.metadata_dir) / relative_text_path
-    idx = relative_text_path.parts[0]
+def _get_meta_metadata(txt_file, options):
+    if 'ocr.txt' in txt_file:
+        # This converts something like `newspaper_dir/lccn/path/to/file` into
+        # `lccn/path/to/file`. This simplifies accessing the metadata, even though
+        # we need the original path to access the fulltext file.
+        txt_path = txt_file.replace('ocr.txt', '').replace(options.newspaper_dir, '')
+        metadata_path = Path(options.metadata_dir) / txt_path
+        idx = txt_path.split('/')[0]
+    else:
+        idx = txt_file.split('/')[-1]
+        metadata_path = Path(options.metadata_dir) / idx
 
     return metadata_path, idx
 
@@ -118,8 +121,10 @@ def _init_score_ranges(base_words):
     ranges = {}
 
     # By setting min to the largest possible value, we guarantee it will be
-    # overwritten by any smaller value we encounter. Similarly, max is set to
-    # the smallest possible value.
+    # overwritten by any smaller value we encounter.
+    # The smallest possible value for min is actually -100, but we'll just
+    # ignore anything that dissimilar -- the visualization will probably be more
+    # readable if everything "dissimilar enough" is set to the baseline color.
     for base_word in base_words:
         ranges[base_word] = {'min': 100, 'max': 0}
 
@@ -136,13 +141,14 @@ def _update_score_ranges(score_ranges, scores):
     return score_ranges
 
 
-def _update_metadata(model, options, directory):
+def _update_metadata(model, options, iterator):
     base_words = _get_base_words(options)
 
-    score_ranges = _init_score_ranges(base_words)
+    trivial_scores = { base_word: 0 for base_word in base_words }
 
-    for txt_file in glob.iglob(directory, recursive=True):
-        output_path, idx = _get_meta_metadata(txt_file)
+    score_ranges = _init_score_ranges(base_words)
+    for txt_file in iterator:
+        output_path, idx = _get_meta_metadata(txt_file, options)
 
         if not output_path.is_file():
             logging.warning(f'Metadata file does not exist at {output_path}')
@@ -150,7 +156,11 @@ def _update_metadata(model, options, directory):
 
         logging.info(f'Updating metadata for {txt_file}...')
 
-        scores = _derive_scores(model, txt_file, base_words)
+        try:
+            scores = _derive_scores(model, txt_file, base_words)
+        except ZeroDivisionError:
+            # If len(words) = 0.
+            scores = trivial_scores
 
         score_ranges = _update_score_ranges(score_ranges, scores)
 
@@ -205,8 +215,8 @@ if __name__ == '__main__':
 
     if options.newspaper_dir:
         logging.info('Processing newspapers...')
-        _update_metadata(model, options, f'{options.newspaper_dir}/**/*.txt')
+        _update_metadata(model, options, Path(options.newspaper_dir).rglob('**/*.txt'))
 
     if options.results_dir:
         logging.info('Processing non-newspapers...')
-        _update_metadata(model, options, f'{options.results_dir}/*')
+        _update_metadata(model, options, glob.iglob(f'{options.results_dir}/*'))

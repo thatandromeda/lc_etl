@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import importlib
 import logging
+from pathlib import Path
 
 from locr import Fetcher
 
@@ -11,7 +12,7 @@ from utilities import slurp, initialize_logger, BASE_DIR
 
 
 def normalize(dataset_path):
-    return dataset_path.replace('.py', '').replace(f'{BASE_DIR}/dataset_definitions/', '')
+    return Path(dataset_path).parts[-1].replace('.py', '')
 
 
 if __name__ == '__main__':
