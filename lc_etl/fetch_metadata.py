@@ -192,7 +192,7 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
         improved_idx = re.sub(
             self.date_pattern,
             r'\g<year>-\g<month>-\g<day>',
-            self.idx,
+            self.extract_path(),
         )
         return f'https://chroniclingamerica.loc.gov/lccn/{improved_idx}'
 
