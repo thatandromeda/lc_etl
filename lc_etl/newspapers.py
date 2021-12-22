@@ -230,7 +230,7 @@ def slurp_newspapers(goal_dates=range(1865, 1878), count=None):
     for url in final_urls:
         total += 1
         # This lets us test with a small number of newspapers.
-        if total == count:
+        if total > count:
             break
 
         logging.info(f'Downloading {url}...')

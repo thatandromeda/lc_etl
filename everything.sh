@@ -35,9 +35,10 @@ set -e
 echo "Downloading data set..."
 pipenv run python lc_etl/dataset.py --dataset_path=$DATADEF --logfile=$LOGFILE
 
-cp ${BASE_DIR}/results/* $RESULTS_DIR
+cp -r ${BASE_DIR}/results/ $RESULTS_DIR
+cp -r ${BASE_DIR}/newspapers/ $FILTER_DIR
 
-pipenv run python lc_etl/fetch_metadata.py --results_dir=$RESULTS_DIR --newspaper_dir=$NEWSPAPER_DIR --logfile=$LOGFILE --overwrite=True &
+pipenv run python lc_etl/fetch_metadata.py --results_dir=$RESULTS_DIR --newspaper_dir=$FILTER_DIR --logfile=$LOGFILE --overwrite=True
 
 
 # ------------------------------ Filter nonwords ----------------------------- #

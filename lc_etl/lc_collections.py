@@ -2,6 +2,7 @@ import logging
 from urllib.parse import urlparse
 
 from locr import Fetcher
+from locr.exceptions import AmbiguousText, ObjectNotOnline
 import requests
 
 from utilities import paginate_search, filter_results, filenamify
@@ -26,7 +27,12 @@ def slurp_collections(collections, filter_for_dates=False):
                 try:
                     fetcher = Fetcher(result)
 
-                    text = fetcher.full_text()
+                    try:
+                        text = fetcher.full_text()
+                    except (AmbiguousText, ObjectNotOnline):
+                        logging.exception(f'Could not get text for {url}')
+                        continue
+
                     if text:
                         found += 1
                         total_words += len(text.split(' '))

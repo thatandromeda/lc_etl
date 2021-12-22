@@ -10,7 +10,8 @@ from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 import requests
 
-from locr import Fetcher, UnknownIdentifier
+from locr import Fetcher
+from locr.exceptions import AmbiguousText, ObjectNotOnline
 
 def make_timestamp():
     return time.strftime('%Y%m%d_%H%M%S', time.localtime())
@@ -20,7 +21,7 @@ PAGE_LENGTH = 500
 TIMEOUT = 3
 BASE_DIR = 'lc_etl/data'
 
-subprocess.call('mkdir results', shell=True)
+(Path(BASE_DIR) / 'results').mkdir(exist_ok=True, parents=True)
 
 def http_adapter():
     # Get around intermittent 500s or whatever. Unfortunately this opens a
@@ -211,6 +212,7 @@ def slurp(**kwargs):
                 logging.info(f'...{stats["processed"]} processed')
             try:
                 text = Fetcher(result).full_text()
+
                 if text:
                     stats['found'] += 1
                     stats['total_words'] += len(text.split(' '))
@@ -220,13 +222,13 @@ def slurp(**kwargs):
                         f.write(text)
 
                 else:
-                    logging.warning(f'WAT: Could not locate text for {result["id"]}')
+                    logging.warning(f'Could not locate text for {result["id"]}')
                     stats['not_found'] += 1
-            except UnknownIdentifier:
-                logging.exception(f'UNK: Could not find identifier for {result["id"]} with image_url {result["image_url"]}')
+            except (AmbiguousText, ObjectNotOnline):
+                logging.exception(f'Could not get text for {url}')
                 stats['failed'] += 1
             except Exception as err:
-                logging.exception(f'BAD: Failed on {result["id"]} with image_url {result["image_url"]}')
+                logging.exception(f'Failed on {result["id"]} with image_url {result["image_url"]}')
                 stats['failed'] += 1
 
         check_for_disk_space()

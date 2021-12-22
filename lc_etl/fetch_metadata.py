@@ -12,6 +12,7 @@ from time import sleep
 
 from utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
 
+
 # We need this later in zip_csv to write the csv correctly. Don't deviate from
 # this order (or if you do, add some handling in zip_csv to make sure items
 # are being written correctly).
@@ -137,6 +138,7 @@ class BaseMetadataFetcher(object):
         self.metadata['locations'] = self.get_locations()
         self.metadata['description'] = self.json.get('description')
         self.metadata['states'] = self.get_states()
+        self.metadata['keyword_scores'] = {}  # set by assign_similarity_metadata
 
 
     def fetch(self):
@@ -303,26 +305,22 @@ def fetch(options):
 
     overwrite = bool(options.overwrite)
 
-    try:
+    if options.identifiers:
         with open(options.identifiers, 'r') as identifiers:
             next(identifiers)   # skip header row
 
             _inner_fetch(identifiers, overwrite)
-    except TypeError:
-        # options.identifiers == None
-        pass
 
-    try:
+    # Don't do try/except here! The glob statement will work even if
+    # options.newspaper_dir is None; it will just search your entire computer,
+    # from / .
+    if options.newspaper_dir:
         _inner_fetch(glob.iglob(
             f'{options.newspaper_dir}/**/ocr.txt', recursive=True
         ), overwrite)
-    except TypeError as e:
-        pass
 
-    try:
+    if options.results_dir:
         _inner_fetch(glob.iglob(f'{options.results_dir}/*'), overwrite)
-    except TypeError as e:
-        pass
 
 
 def parse_args():

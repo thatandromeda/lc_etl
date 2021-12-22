@@ -2,6 +2,7 @@ import logging
 import subprocess
 
 from locr import Fetcher
+from locr.exceptions import AmbiguousText, ObjectNotOnline
 
 from utilities import slurp, http_adapter, jsonify, filenamify, record_subjects
 
@@ -19,7 +20,11 @@ def slurp_items(items):
         url = jsonify(item)
         response = http.get(url).json()
         result = response['item']
-        text = Fetcher(result).full_text()
+        try:
+            text = Fetcher(result).full_text()
+        except (AmbiguousText, ObjectNotOnline):
+            logging.exception(f'Could not get text for {url}')
+            continue
 
         record_subjects(result)
 

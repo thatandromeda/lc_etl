@@ -4,12 +4,19 @@ import json
 import logging
 from pathlib import Path
 
+from assign_similarity_metadata import SCORE_NAMESPACE
 from fetch_metadata import METADATA_ORDER, OUTPUT_DIR, ChronAmMetadataFetcher
 from utilities import initialize_logger
 
-Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
-header = ['x', 'y'] + METADATA_ORDER
+def _get_score_keys(metadata):
+    return list(metadata[SCORE_NAMESPACE].keys())
+
+
+def _write_header(csv_output, score_keys):
+    header = ['x', 'y'] + METADATA_ORDER + score_keys
+    csv_output.writerow(header)
+
 
 def extract_dict(identifier, metadata):
     if ChronAmMetadataFetcher.is_chronam(identifier):
@@ -20,9 +27,13 @@ def extract_dict(identifier, metadata):
 
 def zip_csv(options):
     logging.info('Starting to zip data')
+
+    Path(OUTPUT_DIR).mkdir(exist_ok=True)
+
     with open(options.output, 'w', newline='') as outfile:
         csv_output = csv.writer(outfile, delimiter=',')
-        csv_output.writerow(header)
+        first_time_through = True
+
         with open(options.coordinates, 'r') as coords, open(options.identifiers, 'r') as identifiers:
             # Skip header rows
             next(coords)
@@ -30,12 +41,22 @@ def zip_csv(options):
 
             for coordinate, identifier in zip(coords, identifiers):
                 identifier = identifier.strip()
+
                 try:
                     with open(OUTPUT_DIR / Path(identifier)) as f:
                         raw_item_metadata = json.load(f)
 
                     item_metadata = extract_dict(identifier, raw_item_metadata)
-                    item_metadata = [item_metadata.get(key) for key in METADATA_ORDER]
+
+                    if first_time_through:
+                        score_keys = _get_score_keys(item_metadata)
+                        _write_header(csv_output, score_keys)
+                        first_time_through = False
+
+                    output = [item_metadata.get(key) for key in METADATA_ORDER]
+                    scores = [item_metadata[SCORE_NAMESPACE].get(key) for key in score_keys]
+
+                    output = output + scores
                 except (KeyError, json.JSONDecodeError) as e:
                     # Sometimes we didn't successfully fetch the metadata.
                     logging.exception(f"Couldn't zip metadata for {identifier}")
@@ -44,9 +65,9 @@ def zip_csv(options):
                     logging.exception(f"No metadata file present for {identifier}")
                     continue
 
-                item_metadata = coordinate.strip().split(',') + item_metadata
+                output = coordinate.strip().split(',') + output
 
-                csv_output.writerow(item_metadata)
+                csv_output.writerow(output)
 
     logging.info('Done zipping data')
 

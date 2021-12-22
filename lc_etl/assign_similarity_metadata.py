@@ -50,6 +50,7 @@ MIN_WORD_LENGTH = 4
 # metadata = {lccn: { SCORE_NAMESPACE: {'word_1': score, ...}, ..other metadata...}}
 SCORE_NAMESPACE = 'keyword_scores'
 
+
 def _single_word_score(model, base_words, word):
     scores = {}
 
@@ -98,8 +99,10 @@ def _derive_scores(model, txt_file, base_words):
     return summed_scores
 
 
-def _get_base_words(options):
-    return options.base_words.split(',')
+def _get_base_words(model, options):
+    given_words = options.base_words.split(',')
+    available_words = [word for word in given_words if word in model.wv.index_to_key]
+    return available_words
 
 
 def _get_meta_metadata(txt_file, options):
@@ -142,7 +145,7 @@ def _update_score_ranges(score_ranges, scores):
 
 
 def _update_metadata(model, options, iterator):
-    base_words = _get_base_words(options)
+    base_words = _get_base_words(model, options)
 
     trivial_scores = { base_word: 0 for base_word in base_words }
 
