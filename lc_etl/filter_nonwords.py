@@ -30,8 +30,8 @@ import gensim
 import Levenshtein
 import spacy
 
-from utilities import initialize_logger, BASE_DIR
-from filter_newspaper_locations import normalize
+from lc_etl.utilities import initialize_logger, BASE_DIR
+from lc_etl.filter_newspaper_locations import normalize
 
 GENSIM_THRESHOLD = 0.6
 LEVENSHTEIN_THRESHOLD = .3
@@ -59,7 +59,7 @@ def lookup_from_cache(db, word):
 def close_enough(base_word, test_word):
     # This will be 0 for words of 1 or 2 letters, but those are likely enough
     # to be garbage anyway that it's fine to let them fail here.
-    allowable_distance = floor(LEVENSHTEIN_THRESHOLD * len(base_word))
+    allowable_distance = round(LEVENSHTEIN_THRESHOLD * len(base_word))
 
     # Some errors look like single-character replacements; others look like word
     # fragmentation. Either is OK.
@@ -151,7 +151,10 @@ def get_cache(model_path):
 def _inner_filter(target_dir, db, model, nlp):
     files_checked = 0
 
-    for txt_file in Path(target_dir).rglob('*.txt'):
+    for txt_file in Path(target_dir).rglob('*'):
+        if not txt_file.is_file():
+            continue
+
         with open(txt_file, 'r') as f:
             text = f.read()
 

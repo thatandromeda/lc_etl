@@ -20,3 +20,4 @@ viz
 failed_calls.txt
 nonword_caches/
 *.gz
+!tests/data/*

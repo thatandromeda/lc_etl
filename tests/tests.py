@@ -12,8 +12,7 @@ import responses
 
 from lc_etl.fetch_metadata import fetch
 from lc_etl.zip_csv import zip_csv
-from lc_etl import filter_ocr
-# arrange, act, assert
+from lc_etl import filter_nonwords, filter_ocr, filter_newspaper_locations
 
 @dataclass
 class Arguments:
@@ -333,10 +332,9 @@ class TestZipCSV(unittest.TestCase):
         )
 
 
-class TestFilterOcr(unittest.TestCase):
+class TestFilters(unittest.TestCase):
     def setUp(self):
         self.test_directory = 'tests/data/temp'
-        shutil.copytree('tests/data/ocr', self.test_directory)
 
 
     def tearDown(self):
@@ -344,6 +342,7 @@ class TestFilterOcr(unittest.TestCase):
 
 
     def test_ocr_is_filtered(self):
+        shutil.copytree('tests/data/ocr', self.test_directory)
         good_file = Path(self.test_directory) / 'good_file.txt'
         bad_file = Path(self.test_directory) / 'bad_file.txt'
         short_words_file = Path(self.test_directory) / 'short_words_file.txt'
@@ -357,6 +356,28 @@ class TestFilterOcr(unittest.TestCase):
         assert good_file.is_file()
         assert not bad_file.is_file()
         assert not short_words_file.is_file()
+
+
+    def test_nonwords_filtered(self):
+        shutil.copytree('tests/data/nonwords', self.test_directory)
+
+        filter_nonwords.filter(self.test_directory, 'tests/data/gensim_outputs/test_model')
+
+        with open(Path(self.test_directory) / 'testfile') as f:
+            content = f.read()
+
+        assert content.strip() == "slaves is a word that appears in the federal writers project corpus is not"
+
+
+    def test_newspaper_locations(self):
+        shutil.copytree('tests/data/locations', self.test_directory)
+
+        filter_newspaper_locations.filter(self.test_directory, 'tests/data/metadata')
+
+        with open(Path(self.test_directory) / 'sn78000873/1869/12/30/ed-1/seq-1/ocr.txt') as f:
+            content = f.read()
+
+        assert content.strip() == "once upon a time there was a congressman who had a peach from ireland"
 
 
 class TestBulkScripts(unittest.TestCase):

@@ -49,7 +49,7 @@ import logging
 from pathlib import Path
 import string
 
-from utilities import initialize_logger
+from lc_etl.utilities import initialize_logger
 
 
 def title_words(metadata):
@@ -99,9 +99,13 @@ def filter(target_dir, metadata_dir):
         with open(txt_file, 'r') as f:
             text = f.read()
 
-        filtered_text = normalize(text)
-        for word in stopwords:
-            filtered_text = filtered_text.replace(word, '')
+        # This is so slow, but if we do a string replace we'll end up replacing
+        # substrings (e.g. turning "remained" into "red" for newspapers from
+        # Maine). And if we don't normalize, who knows what happens with the
+        # punctuation.
+        filtered_text = normalize(text).split()
+        filtered_text = [word for word in filtered_text if word not in stopwords]
+        filtered_text = ' '.join(filtered_text)
 
         if count % 100 == 0:
             logging.info(f'{count} documents filtered')
