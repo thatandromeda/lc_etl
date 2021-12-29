@@ -8,11 +8,13 @@ import shutil
 import subprocess
 import unittest
 
+import gensim
 import responses
 
+from lc_etl import filter_nonwords, filter_ocr, filter_newspaper_locations
+from lc_etl.assign_similarity_metadata import update_metadata
 from lc_etl.fetch_metadata import fetch
 from lc_etl.zip_csv import zip_csv
-from lc_etl import filter_nonwords, filter_ocr, filter_newspaper_locations
 
 @dataclass
 class Arguments:
@@ -34,6 +36,15 @@ class ArgumentsZip:
     identifiers: str
     output: str
     overwrite: bool = True
+
+
+@dataclass
+class ArgumentsSimilarity:
+    model_path: str
+    base_words: str
+    metadata_dir: str
+    newspaper_dir: str = ''
+    results_dir: str = ''
 
 
 class TestMetadataFetching(unittest.TestCase):
@@ -467,6 +478,49 @@ line 13
         with open(Path(self.test_directory) / 'short_file') as f:
             assert f.read() == ''
 
+
+class TestSimilarityMetadata(unittest.TestCase):
+    def setUp(self):
+        self.test_metadata = 'tests/data/test_metadata'
+        shutil.copytree('tests/data/metadata', self.test_metadata)
+
+
+    def tearDown(self):
+        shutil.rmtree(self.test_metadata)
+
+
+    def test_assignment(self):
+        model_path = 'tests/data/gensim_outputs/test_model'
+        newspaper_dir = 'tests/data/locations'
+        model = gensim.models.Doc2Vec.load(model_path)
+        arguments = ArgumentsSimilarity(
+            model_path=model_path,
+            newspaper_dir=newspaper_dir,
+            metadata_dir=self.test_metadata,
+            base_words='the,federal'
+        )
+        iterator = Path(newspaper_dir).rglob('**/*.txt')
+
+        update_metadata(model, arguments, iterator)
+
+        with open(Path(self.test_metadata) / 'sn78000873/1869/12/30/ed-1/seq-1') as f:
+            metadata = json.load(f)
+        item_metadata = metadata['sn78000873']
+
+        assert 'keyword_scores' in item_metadata
+
+        # We don't test for the specific value of the integer, because it isn't
+        # guaranteed to be the same across runs:
+        # - we sample words, so for documents larger than our sample size, we are
+        #   unlikely to end up with the same score;
+        # - users might run this using a variety of neural nets, which wouldn't
+        #   encode the same similarities.
+        # Different runs _of this same test suite_ should yield the same
+        # similarity scores, because we're using a small test file and fixed
+        # neural net, but I'm not going to write those scores into the test
+        # since score stability is not a thing I am promising.
+        assert isinstance(item_metadata['keyword_scores']['the'], int)
+        assert isinstance(item_metadata['keyword_scores']['federal'], int)
 
 
 if __name__ == '__main__':

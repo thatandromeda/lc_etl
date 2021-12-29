@@ -145,7 +145,7 @@ def _update_score_ranges(score_ranges, scores):
     return score_ranges
 
 
-def _update_metadata(model, options, iterator):
+def update_metadata(model, options, iterator):
     base_words = _get_base_words(model, options)
 
     trivial_scores = { base_word: 0 for base_word in base_words }
@@ -219,8 +219,8 @@ if __name__ == '__main__':
 
     if options.newspaper_dir:
         logging.info('Processing newspapers...')
-        _update_metadata(model, options, Path(options.newspaper_dir).rglob('**/*.txt'))
+        update_metadata(model, options, Path(options.newspaper_dir).rglob('**/*.txt'))
 
     if options.results_dir:
         logging.info('Processing non-newspapers...')
-        _update_metadata(model, options, glob.iglob(f'{options.results_dir}/*'))
+        update_metadata(model, options, glob.iglob(f'{options.results_dir}/*'))
