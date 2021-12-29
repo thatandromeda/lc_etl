@@ -19,3 +19,4 @@ old_*
 viz
 failed_calls.txt
 nonword_caches/
+*.gz

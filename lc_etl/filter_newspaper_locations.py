@@ -58,6 +58,7 @@ def title_words(metadata):
     if not title:
         return []
 
+    # This will probably remove words like "the". Is that bad?
     return [normalize(word) for word in title.split()]
 
 
@@ -89,17 +90,20 @@ def filter(target_dir, metadata_dir):
     count = 0
     for txt_file in Path(target_dir).rglob('**/*.txt'):
         count += 1
-        stopwords = get_stopwords(txt_file, target_dir, metadata_dir)
+        try:
+            stopwords = get_stopwords(txt_file, target_dir, metadata_dir)
+        except FileNotFoundError:
+            logging.exception(f'Metadata not found for {txt_file}')
+            continue
 
         with open(txt_file, 'r') as f:
             text = f.read()
 
-        filtered_text = [word for word in text.split() if word.lower() not in stopwords]
-        # This will end up removing any newlines in the original, but I think
-        # that's fine, as they should not contribute to meaning in the first
-        # place.
-        filtered_text = ' '.join(filtered_text)
-        if count == 100:
+        filtered_text = normalize(text)
+        for word in stopwords:
+            filtered_text = filtered_text.replace(word, '')
+
+        if count % 100 == 0:
             logging.info(f'{count} documents filtered')
 
         with open(txt_file, 'w') as f:
@@ -110,7 +114,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--target_dir', help='directory containing files to check')
     parser.add_argument('--metadata_dir', help='directory containing metadata for these files')
-    parser.add_argument('--logfile', default="filter_ocr.log")
+    parser.add_argument('--logfile', default="filter_newspaper_locations.log")
 
     options = parser.parse_args()
 

@@ -114,9 +114,16 @@ class BaseMetadataFetcher(object):
                 response = h.get(f'https://www.loc.gov/item/{self.identifier}/?fo=json')
             sleep(0.5)  # rate limits
             try:
+                # Pages that 404 will return a 404 status code but an actual
+                # parseable JSON body. That body doesn't contain an 'item' key,
+                # so the way it's currently structured (28 December 2021), it
+                # will fail when we try to access item metadata. Nonetheless,
+                # let's be defensive rather than relying on that coincidental
+                # fact about the JSON.
+                assert response.status_code == 200
                 item_json = response.json()['item']
                 self.cache[self.identifier] = item_json
-            except (KeyError, json.decoder.JSONDecodeError):
+            except (AssertionError, KeyError, json.decoder.JSONDecodeError):
                 with open('failed_calls.txt', 'a') as f:
                     f.write(f"{self.identifier}\n")
 

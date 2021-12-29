@@ -57,7 +57,6 @@ def filter_for_quality(target_dir):
     dictionary = set(spacy.load("en_core_web_sm").vocab.strings)
 
     for txt_file in Path(target_dir).rglob('*.txt'):
-
         with txt_file.open() as f:
             text = f.read()
 
@@ -68,7 +67,8 @@ def filter_for_quality(target_dir):
             if len(word) > min_word_length
         ])
         if not len(tokens):
-            print(f'{txt_file} has no long tokens and is bad')
+            logging.warning(f'{txt_file} has no long tokens; deleting')
+            Path(txt_file).unlink()
             continue
 
         total_files += 1

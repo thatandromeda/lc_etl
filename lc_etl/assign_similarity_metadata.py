@@ -106,11 +106,12 @@ def _get_base_words(model, options):
 
 
 def _get_meta_metadata(txt_file, options):
+    txt_file = str(txt_file)
     if 'ocr.txt' in txt_file:
         # This converts something like `newspaper_dir/lccn/path/to/file` into
         # `lccn/path/to/file`. This simplifies accessing the metadata, even though
         # we need the original path to access the fulltext file.
-        txt_path = txt_file.replace('ocr.txt', '').replace(options.newspaper_dir, '')
+        txt_path = txt_file.replace('ocr.txt', '').replace(options.newspaper_dir, '').lstrip('/')
         metadata_path = Path(options.metadata_dir) / txt_path
         idx = txt_path.split('/')[0]
     else:

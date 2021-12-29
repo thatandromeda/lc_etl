@@ -4,9 +4,9 @@ NEWSPAPER_DIR = 'newspapers_everything'
 
 RESULTS_DIR = 'results_everything'
 
-MIN_FREQUENCY = 30
+MIN_FREQUENCY = 50
 
-EPOCHS = 100
+EPOCHS = 40
 
 MODEL_OPTIONS = {
     'vector_size': 100,
