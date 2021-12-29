@@ -38,8 +38,8 @@ import logging
 
 import spacy
 
-from train_doc2vec import Configuration
-from utilities import initialize_logger
+from lc_etl.train_doc2vec import Configuration
+from lc_etl.utilities import initialize_logger
 
 def filter_for_quality(target_dir):
     """

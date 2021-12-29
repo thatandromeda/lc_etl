@@ -10,7 +10,7 @@ import re
 import shutil
 from time import sleep
 
-from utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
+from lc_etl.utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
 
 
 # We need this later in zip_csv to write the csv correctly. Don't deviate from

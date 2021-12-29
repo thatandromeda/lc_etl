@@ -64,3 +64,4 @@ You can also explore visually using [deepscatter](https://github.com/CreatingDat
 
 # Tests
 - `pipenv run python -m unittest tests/tests.py`
+- You can run a single test case with, e.g., `pipenv run python -m unittest tests.tests.TestBulkScripts` (or a single test by appending it to this format).

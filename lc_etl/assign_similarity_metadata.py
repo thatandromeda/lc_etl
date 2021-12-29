@@ -30,8 +30,8 @@ import random
 
 import gensim
 
-from train_doc2vec import Configuration
-from utilities import initialize_logger
+from lc_etl.train_doc2vec import Configuration
+from lc_etl.utilities import initialize_logger
 
 
 # Based on experiments with a subset of newspapers and some words of interest:

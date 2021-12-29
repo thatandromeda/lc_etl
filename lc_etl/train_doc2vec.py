@@ -13,7 +13,7 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.parsing.preprocessing import remove_stopwords
 
-from utilities import make_timestamp, initialize_logger, BASE_DIR
+from lc_etl.utilities import make_timestamp, initialize_logger, BASE_DIR
 
 output_dir = f'{BASE_DIR}/gensim_outputs'
 

@@ -1,14 +1,18 @@
 import argparse
+import csv
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import re
 import shutil
+import subprocess
 import unittest
 
 import responses
 
 from lc_etl.fetch_metadata import fetch
 from lc_etl.zip_csv import zip_csv
+from lc_etl import filter_ocr
 # arrange, act, assert
 
 @dataclass
@@ -17,10 +21,21 @@ class Arguments:
 
 
 @dataclass
+class ArgumentsMetadata:
+    identifiers: str
+    newspaper_dir: str = ''
+    results_dir: str = ''
+    logfile: str = ''
+    overwrite: bool = True
+
+
+@dataclass
 class ArgumentsZip:
     coordinates: str
     identifiers: str
     output: str
+    overwrite: bool = True
+
 
 class TestMetadataFetching(unittest.TestCase):
     def setUp(self):
@@ -29,7 +44,7 @@ class TestMetadataFetching(unittest.TestCase):
             # request! Without this, it defaults to mocking the requests
             # library, and only matches on things sent in this file by
             # requests.get().
-            target="lc_etlutilities.http_adapter"
+            target="lc_etl.utilities.http_adapter"
         )
         self.responses.start()
 
@@ -55,7 +70,7 @@ class TestMetadataFetching(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(Arguments(identifiers='tests/identifiers_chronam.csv'))
+        fetch(ArgumentsMetadata(identifiers='tests/identifiers_chronam.csv'))
 
         # This is an implicit assertion that the metadata has been written to
         # the correct place.
@@ -104,16 +119,8 @@ class TestMetadataFetching(unittest.TestCase):
         )
         self.assertEqual(
             metadata['image_url'],
-            None
+            'https:/chroniclingamerica.loc.gov/lccn/sn88053082/1877-10-18/ed-1/seq-3/thumbnail.jpg'
         )
-        identifier = 'sn88053082'
-        with open(f'tests/{identifier}.json', 'r') as f:
-            self.responses.add(
-                responses.GET,
-                f'https://www.loc.gov/item/{identifier}/?fo=json',
-                json=json.load(f),
-            )
-        fetch(Arguments(identifiers='tests/identifiers_chronam.csv'))
 
 
     @unittest.mock.patch('lc_etl.fetch_metadata.OUTPUT_DIR', 'tests/metadata')
@@ -126,7 +133,7 @@ class TestMetadataFetching(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(Arguments(identifiers='tests/identifiers_items.csv'))
+        fetch(ArgumentsMetadata(identifiers='tests/identifiers_items.csv'))
 
         # This is an implicit assertion that the metadata has been written to
         # the correct place.
@@ -229,7 +236,7 @@ class TestZipCSV(unittest.TestCase):
             # request! Without this, it defaults to mocking the requests
             # library, and only matches on things sent in this file by
             # requests.get().
-            target="lc_etlutilities.http_adapter"
+            target="lc_etl.utilities.http_adapter"
         )
         self.responses.start()
 
@@ -259,32 +266,27 @@ class TestZipCSV(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(Arguments(identifiers='tests/identifiers_chronam.csv'))
+        fetch(ArgumentsMetadata(identifiers='tests/identifiers_chronam.csv'))
         zip_csv(ArgumentsZip(
             identifiers='tests/identifiers_chronam.csv',
             coordinates='tests/fake_coordinates.csv',
             output='tests/zip_csv.csv',
         ))
         with open('tests/zip_csv.csv', 'r') as f:
-            zipped_csv = f.readlines()
+            dict_csv = csv.DictReader(f)
+            data = next(dict_csv)
 
-        self.assertEqual(
-            zipped_csv[0].strip(),
-            ('x,y,collections,title,subjects,subject_headings,locations,date,'
-             'url,image_url,description,states')
-        )
-        self.assertEqual(
-            zipped_csv[1].strip(),
-            ('-5.510140895843505859e+00,4.083539009094238281e+00,'
-             "['directory of us newspapers in american libraries'],"
-             '"Delaware Tribune, and the Delaware State Journal (Wilmington, Del.) 1877-18??",'
-             "\"[{'delaware': 'https://www.loc.gov/search/?fa=subject:delaware&fo=json'}, {'new castle': 'https://www.loc.gov/search/?fa=subject:new+castle&fo=json'}, {'newspapers': 'https://www.loc.gov/search/?fa=subject:newspapers&fo=json'}, {'united states': 'https://www.loc.gov/search/?fa=subject:united+states&fo=json'}, {'wilmington': 'https://www.loc.gov/search/?fa=subject:wilmington&fo=json'}, {'wilmington (del.)': 'https://www.loc.gov/search/?fa=subject:wilmington+%28del.%29&fo=json'}]\","
-             "\"['Wilmington (Del.)--Newspapers', 'Delaware--Wilmington', 'United States--Delaware--New Castle--Wilmington']\","
-             "\"['delaware', 'new castle', 'wilmington', 'united states']\","
-             '1877-10-18,https://chroniclingamerica.loc.gov/lccn/sn88053082/1877-10-18/ed-1/seq-3,,'
-             "\"['Weekly Began in 1877. Archived issues are available in digital format from the Library of Congress Chronicling America online collection. Description based on: Vol. 11, no. 544 (June 14, 1877). Delaware state journal (Wilmington, Del. : 1870) 2574-6766 (DLC)sn 84026836 (OCoLC)10718558']\","
-             "['Delaware']")
-        )
+        assert data['x'] == '-5.510140895843505859e+00'
+        assert data['y'] == '4.083539009094238281e+00'
+        assert data['collections'] == "['directory of us newspapers in american libraries']"
+        assert data['title'] == "Delaware Tribune, and the Delaware State Journal (Wilmington, Del.) 1877-18??"
+        assert data['subjects'] == "[{'delaware': 'https://www.loc.gov/search/?fa=subject:delaware&fo=json'}, {'new castle': 'https://www.loc.gov/search/?fa=subject:new+castle&fo=json'}, {'newspapers': 'https://www.loc.gov/search/?fa=subject:newspapers&fo=json'}, {'united states': 'https://www.loc.gov/search/?fa=subject:united+states&fo=json'}, {'wilmington': 'https://www.loc.gov/search/?fa=subject:wilmington&fo=json'}, {'wilmington (del.)': 'https://www.loc.gov/search/?fa=subject:wilmington+%28del.%29&fo=json'}]"
+        assert data['subject_headings'] == "['Wilmington (Del.)--Newspapers', 'Delaware--Wilmington', 'United States--Delaware--New Castle--Wilmington']"
+        assert data['locations'] == str(['new castle', 'delaware', 'united states', 'wilmington'])
+        assert data['date'] == '1877-10-18'
+        assert data['url'].rstrip('/') == 'https://chroniclingamerica.loc.gov/lccn/sn88053082/1877-10-18/ed-1/seq-3'
+        assert data['description'] == "['Weekly Began in 1877. Archived issues are available in digital format from the Library of Congress Chronicling America online collection. Description based on: Vol. 11, no. 544 (June 14, 1877). Delaware state journal (Wilmington, Del. : 1870) 2574-6766 (DLC)sn 84026836 (OCoLC)10718558']"
+        assert data['states'] == "['Delaware']"
 
 
     @unittest.mock.patch('lc_etl.fetch_metadata.OUTPUT_DIR', 'tests/metadata')
@@ -298,7 +300,7 @@ class TestZipCSV(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(Arguments(identifiers='tests/identifiers_items.csv'))
+        fetch(ArgumentsMetadata(identifiers='tests/identifiers_items.csv'))
         zip_csv(ArgumentsZip(
             identifiers='tests/identifiers_items.csv',
             coordinates='tests/fake_coordinates.csv',
@@ -329,6 +331,121 @@ class TestZipCSV(unittest.TestCase):
              ',,[]'
             )
         )
+
+
+class TestFilterOcr(unittest.TestCase):
+    def setUp(self):
+        self.test_directory = 'tests/data/temp'
+        shutil.copytree('tests/data/ocr', self.test_directory)
+
+
+    def tearDown(self):
+        shutil.rmtree(self.test_directory)
+
+
+    def test_ocr_is_filtered(self):
+        good_file = Path(self.test_directory) / 'good_file.txt'
+        bad_file = Path(self.test_directory) / 'bad_file.txt'
+        short_words_file = Path(self.test_directory) / 'short_words_file.txt'
+
+        assert good_file.is_file()
+        assert bad_file.is_file()
+        assert short_words_file.is_file()
+
+        filter_ocr.filter_for_quality(self.test_directory)
+
+        assert good_file.is_file()
+        assert not bad_file.is_file()
+        assert not short_words_file.is_file()
+
+
+class TestBulkScripts(unittest.TestCase):
+    def setUp(self):
+        self.test_directory = 'tests/data/temp'
+        self.bulk_scripts_path = Path(__file__).parent.parent / 'lc_etl' / 'bulk_scripts'
+
+
+    def tearDown(self):
+        shutil.rmtree(self.test_directory)
+
+
+    def test_transcription_attribution(self):
+        shutil.copytree('tests/data/bulk_scripts/transcription', self.test_directory)
+        expected = "Hi! I'm a file!"
+        script = self.bulk_scripts_path / 'remove_transcription_attribution.sh'
+
+        subprocess.run(f'{script} -p {self.test_directory}', shell=True)
+
+        with open(Path(self.test_directory) / 'changed_file') as f:
+            de_whitespaced = ' '.join(f.read().split())
+            assert de_whitespaced == expected
+
+        with open(Path(self.test_directory) / 'unchanged_file') as f:
+            de_whitespaced = ' '.join(f.read().split())
+            assert de_whitespaced == expected
+
+
+    def test_remove_archival_notes_gentle(self):
+        shutil.copytree('tests/data/bulk_scripts/archival_notes', self.test_directory)
+        script = self.bulk_scripts_path / 'remove_archival_notes_gentle.sh'
+
+        subprocess.run(f'{script} -p {self.test_directory}', shell=True)
+
+        with open(Path(self.test_directory) / 'good_file') as f:
+            assert f.read() == """line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+"""
+
+        with open(Path(self.test_directory) / 'bad_file') as f:
+            assert f.read() == "line 10\n"
+
+
+        with open(Path(self.test_directory) / 'very_bad_file') as f:
+            assert f.read() == ''
+
+
+    def test_remove_archival_notes_harsh(self):
+        shutil.copytree('tests/data/bulk_scripts/archival_notes', self.test_directory)
+        script = self.bulk_scripts_path / 'remove_archival_notes_harsh.sh'
+
+        subprocess.run(f'{script} -p {self.test_directory}', shell=True)
+
+        with open(Path(self.test_directory) / 'good_file') as f:
+            assert f.read() == """line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+"""
+
+        assert not (Path(self.test_directory) / 'bad_file').is_file()
+        assert not (Path(self.test_directory) / 'very_bad_file').is_file()
+
+
+    def test_remove_frontmatter(self):
+        shutil.copytree('tests/data/bulk_scripts/frontmatter', self.test_directory)
+        script = self.bulk_scripts_path / 'remove_frontmatter.sh'
+
+        subprocess.run(f'{script} -p {self.test_directory}', shell=True)
+
+        with open(Path(self.test_directory) / 'long_file') as f:
+            assert f.read() == """line 11
+line 12
+line 13
+"""
+
+        with open(Path(self.test_directory) / 'short_file') as f:
+            assert f.read() == ''
+
 
 
 if __name__ == '__main__':

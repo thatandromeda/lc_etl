@@ -4,9 +4,9 @@ import json
 import logging
 from pathlib import Path
 
-from assign_similarity_metadata import SCORE_NAMESPACE
-from fetch_metadata import METADATA_ORDER, OUTPUT_DIR, ChronAmMetadataFetcher
-from utilities import initialize_logger
+from lc_etl.assign_similarity_metadata import SCORE_NAMESPACE
+from lc_etl.fetch_metadata import METADATA_ORDER, OUTPUT_DIR, ChronAmMetadataFetcher
+from lc_etl.utilities import initialize_logger
 
 
 def _get_score_keys(metadata):
