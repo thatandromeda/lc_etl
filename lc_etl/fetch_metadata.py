@@ -10,7 +10,7 @@ import re
 import shutil
 from time import sleep
 
-from lc_etl.utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
+from .utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
 
 
 # We need this later in zip_csv to write the csv correctly. Don't deviate from
@@ -302,7 +302,7 @@ def _inner_fetch(identifiers, overwrite):
             json.dump(result, f)
 
 
-def fetch(options):
+def _fetch(identifiers, newspaper_dir, results_dir, overwrite):
     """
     Fetches metadata for ALL identifiers passed in by any of the following
     options: identifiers, newspaper_dir, results_dir.
@@ -310,47 +310,31 @@ def fetch(options):
     from the first time and not refetched.
     """
 
-    overwrite = bool(options.overwrite)
-
-    if options.identifiers:
-        with open(options.identifiers, 'r') as identifiers:
+    if identifiers:
+        with open(identifiers, 'r') as identifiers:
             next(identifiers)   # skip header row
 
             _inner_fetch(identifiers, overwrite)
 
     # Don't do try/except here! The glob statement will work even if
-    # options.newspaper_dir is None; it will just search your entire computer,
+    # newspaper_dir is None; it will just search your entire computer,
     # from / .
-    if options.newspaper_dir:
+    if newspaper_dir:
         _inner_fetch(glob.iglob(
-            f'{options.newspaper_dir}/**/ocr.txt', recursive=True
+            f'{newspaper_dir}/**/ocr.txt', recursive=True
         ), overwrite)
 
-    if options.results_dir:
-        _inner_fetch(glob.iglob(f'{options.results_dir}/*'), overwrite)
+    if results_dir:
+        _inner_fetch(glob.iglob(f'{results_dir}/*'), overwrite)
 
 
-def parse_args():
-    parser = ArgumentParser()
-    parser.add_argument('--identifiers',
-                        help='path to metadata file output by embedding.py')
-    parser.add_argument('--newspaper_dir',
-                        help='path to newspaper files')
-    parser.add_argument('--results_dir',
-                        help='path to non-newspaper files')
-    parser.add_argument('--logfile', default="fetch_metadata.log")
-    parser.add_argument('--overwrite', default=False)
+def run(identifiers=None, newspaper_dir=None, results_dir=None,
+        logfile='fetch_metadata.log', overwrite=False):
 
-    return parser.parse_args()
-
-
-if __name__ == '__main__':
-    options = parse_args()
-
-    if not any([options.identifiers, options.newspaper_dir, options.results_dir]):
+    if not any([identifiers, newspaper_dir, results_dir]):
         print('Must provide at least one source of identifiers')
         import sys; sys.exit()
 
-    initialize_logger(options.logfile)
+    initialize_logger(logfile)
 
-    fetch(options)
+    _fetch(identifiers, newspaper_dir, results_dir, overwrite)

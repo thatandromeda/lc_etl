@@ -8,8 +8,7 @@ import shutil
 import subprocess
 from time import sleep
 
-from filter_ocr import filter_for_quality
-from utilities import http_adapter, check_for_disk_space, BASE_DIR
+from .utilities import http_adapter, check_for_disk_space, BASE_DIR
 
 newspapers_list = ["American Freedman", "Annual Cyclopedia",
     "Atlanta Constitution", "Atlantic Monthly", "Augusta Loyal Georgian",

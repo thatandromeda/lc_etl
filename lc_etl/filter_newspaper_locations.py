@@ -49,7 +49,7 @@ import logging
 from pathlib import Path
 import string
 
-from lc_etl.utilities import initialize_logger
+from .utilities import initialize_logger
 
 
 def title_words(metadata):
@@ -86,7 +86,7 @@ def get_stopwords(txt_file, target_dir, metadata_dir):
     return list(set(stopwords))
 
 
-def filter(target_dir, metadata_dir):
+def _filter(target_dir, metadata_dir):
     count = 0
     for txt_file in Path(target_dir).rglob('**/*.txt'):
         count += 1
@@ -114,14 +114,7 @@ def filter(target_dir, metadata_dir):
             f.write(filtered_text)
 
 
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--target_dir', help='directory containing files to check')
-    parser.add_argument('--metadata_dir', help='directory containing metadata for these files')
-    parser.add_argument('--logfile', default="filter_newspaper_locations.log")
+def run(target_dir, metadata_dir, logfile='filter_newspaper_locations.log'):
+    initialize_logger(logfile)
 
-    options = parser.parse_args()
-
-    initialize_logger(options.logfile)
-
-    filter(options.target_dir.rstrip('/'), options.metadata_dir.rstrip('/'))
+    _filter(target_dir.rstrip('/'), metadata_dir.rstrip('/'))

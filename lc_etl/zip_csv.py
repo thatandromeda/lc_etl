@@ -4,9 +4,9 @@ import json
 import logging
 from pathlib import Path
 
-from lc_etl.assign_similarity_metadata import SCORE_NAMESPACE
-from lc_etl.fetch_metadata import METADATA_ORDER, OUTPUT_DIR, ChronAmMetadataFetcher
-from lc_etl.utilities import initialize_logger
+from .assign_similarity_metadata import SCORE_NAMESPACE
+from .fetch_metadata import METADATA_ORDER, OUTPUT_DIR, ChronAmMetadataFetcher
+from .utilities import initialize_logger
 
 
 def _get_score_keys(metadata):
@@ -25,16 +25,16 @@ def extract_dict(identifier, metadata):
     return metadata[identifier]
 
 
-def zip_csv(options):
+def _zip_csv(coordinates, identifiers, output):
     logging.info('Starting to zip data')
 
     Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
-    with open(options.output, 'w', newline='') as outfile:
+    with open(output, 'w', newline='') as outfile:
         csv_output = csv.writer(outfile, delimiter=',')
         first_time_through = True
 
-        with open(options.coordinates, 'r') as coords, open(options.identifiers, 'r') as identifiers:
+        with open(coordinates, 'r') as coords, open(identifiers, 'r') as identifiers:
             # Skip header rows
             next(coords)
             next(identifiers)
@@ -72,18 +72,7 @@ def zip_csv(options):
     logging.info('Done zipping data')
 
 
-def parse_args():
-    parser = ArgumentParser()
-    parser.add_argument('--coordinates', help='path/to/coordinates/file', required=True)
-    parser.add_argument('--identifiers', help='path/to/identifiers/file', required=True)
-    parser.add_argument('--output', help='path/to/output/file', required=True)
-    parser.add_argument('--logfile', default="zip_csv.log")
-    return parser.parse_args()
+def run(coordinates, identifiers, output, logfile='zip_csv.log'):
+    initialize_logger(logfile)
 
-
-if __name__ == '__main__':
-    options = parse_args()
-
-    initialize_logger(options.logfile)
-
-    zip_csv(options)
+    _zip_csv(coordinates, identifiers, output)

@@ -39,8 +39,8 @@ import Levenshtein
 import more_itertools
 import spacy
 
-from utilities import BASE_DIR
-from filter_newspaper_locations import normalize
+from .utilities import BASE_DIR
+from .filter_newspaper_locations import normalize
 
 GENSIM_THRESHOLD = 0.6
 LEVENSHTEIN_THRESHOLD = .3
@@ -223,7 +223,7 @@ def num_processes(options):
     return min(desired_num, os.cpu_count())
 
 
-def filter(options):
+def _filter(options):
     all_files_iterable = Path(options.target_dir).rglob('*.txt')
 
     num = num_processes(options)
@@ -248,7 +248,7 @@ if __name__ == '__main__':
     parser.add_argument('--logfile', default="filter_nonwords_<id>.log")
     options = parser.parse_args()
 
-    filter(options)
+    _filter(options)
 
 # for `canton`, 2-letter changes are common (e.g. 'cautou')
 # >>> model.wv.most_similar('cautou')

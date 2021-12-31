@@ -5,7 +5,7 @@ from locr import Fetcher
 from locr.exceptions import AmbiguousText, ObjectNotOnline
 import requests
 
-from utilities import paginate_search, filter_results, filenamify
+from .utilities import paginate_search, filter_results, filenamify
 
 def slurp_collections(collections, filter_for_dates=False):
     found = 0

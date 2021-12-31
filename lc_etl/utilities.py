@@ -21,6 +21,9 @@ PAGE_LENGTH = 500
 TIMEOUT = 3
 BASE_DIR = 'lc_etl/data'
 
+DEFAULT_NEWSPAPER_DIR = 'newspapers'
+DEFAULT_RESULTS_DIR = 'results'
+
 (Path(BASE_DIR) / 'results').mkdir(exist_ok=True, parents=True)
 
 def http_adapter():

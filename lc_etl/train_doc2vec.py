@@ -13,7 +13,7 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from gensim.models.callbacks import CallbackAny2Vec
 from gensim.parsing.preprocessing import remove_stopwords
 
-from lc_etl.utilities import make_timestamp, initialize_logger, BASE_DIR
+from .utilities import make_timestamp, initialize_logger, BASE_DIR
 
 output_dir = f'{BASE_DIR}/gensim_outputs'
 
@@ -322,25 +322,10 @@ def initialize_vocabulary(config, model):
         model.build_vocab(LocCorpus(config))
 
 
+def run(config_file, logfile='train_doc2vec.log'):
+    config = Configuration(config_file)
 
-# train_corpus = list(read_document(lee_train_file))
-# test_corpus = list(read_document(lee_test_file, tokens_only=True))
-
-# Although I will run this from the command line, I need things to be importable
-# into the shell for debugging.
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--config_file',
-                        help='import_path.to.configuration_file, suitable for `import`',
-                        default=None)
-    # This is separate from the config file because the same logfile may be
-    # passed to every script along the pipeline, whereas the config file holds
-    # information unique to this script.
-    parser.add_argument('--logfile', default="train_doc2vec.log")
-    options = parser.parse_args()
-    config = Configuration(options.config_file)
-
-    initialize_logger(options.logfile or f'{config.identifier}.log')
+    initialize_logger(logfile or f'{config.identifier}.log')
 
     logging.info('Defining model')
     model = Doc2Vec(**config.model_options)

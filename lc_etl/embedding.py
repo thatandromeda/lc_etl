@@ -11,14 +11,15 @@ import pandas as pd
 import umap.umap_ as umap
 # import umap.plot
 
-from utilities import initialize_logger, BASE_DIR
+from .utilities import initialize_logger, BASE_DIR
 
 OUTPUT_DIR = f'{BASE_DIR}/viz'
 
 Path(f'./{OUTPUT_DIR}').mkdir(exist_ok=True)
 
-def file_prefix():
-    return Path(options.model).name
+def file_prefix(model):
+    return Path(model).name
+
 
 def make_embedding(model):
     logging.info('Generating embedding...')
@@ -51,17 +52,17 @@ def make_embedding(model):
 # umap throws weird errors
 # maybe it's time to think about deepscatter again
 
-def write_to_tsv(embedding):
+def write_to_tsv(model_path, embedding):
     """
     Output coordinates as a TSV file, suitable for use by deepscatter.
     """
     logging.info('Writing embedding coordinates')
-    output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix()}_coordinates.csv')
+    output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix(model_path)}_coordinates.csv')
     np.savetxt(output_path, embedding, delimiter=",",
                header="x\ty", comments='')
 
 
-def write_metadata(model):
+def write_metadata(model, model_path):
     """
     Write metadata for each of the data points to a tsv file, suitable for use
     by deepscatter.
@@ -71,7 +72,7 @@ def write_metadata(model):
     logging.info('Writing embedding metadata')
     header = ['lccn']
 
-    output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix()}_metadata.csv')
+    output_path = Path(OUTPUT_DIR).joinpath(f'{file_prefix(model_path)}_metadata.csv')
 
     with open(output_path, 'w', newline='') as f:
         csv_output = csv.writer(f, delimiter=',')
@@ -83,15 +84,10 @@ def write_metadata(model):
             csv_output.writerow([key])
 
 
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--model', help='path/to/filename of model to load')
-    parser.add_argument('--logfile', default="embedding.log")
-    options = parser.parse_args()
+def run(model_path, logfile='embedding.log'):
+    initialize_logger(logfile)
 
-    initialize_logger(options.logfile)
-
-    model = gensim.models.Doc2Vec.load(options.model)
+    model = gensim.models.Doc2Vec.load(model_path)
     embedding = make_embedding(model)
-    write_to_tsv(embedding)
-    write_metadata(model)
+    write_to_tsv(model_path, embedding)
+    write_metadata(model, model_path)

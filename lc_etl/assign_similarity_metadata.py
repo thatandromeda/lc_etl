@@ -22,6 +22,7 @@ The score is calculated by:
 - normalize to integer values between 0 and 100
 """
 from argparse import ArgumentParser
+from dataclasses import dataclass
 import json
 import glob
 import logging
@@ -30,8 +31,8 @@ import random
 
 import gensim
 
-from lc_etl.train_doc2vec import Configuration
-from lc_etl.utilities import initialize_logger
+from .train_doc2vec import Configuration
+from .utilities import initialize_logger
 
 
 # Based on experiments with a subset of newspapers and some words of interest:
@@ -49,6 +50,15 @@ MIN_WORD_LENGTH = 4
 # and to keep the metadata orderly. Thus the overall structure will be
 # metadata = {lccn: { SCORE_NAMESPACE: {'word_1': score, ...}, ..other metadata...}}
 SCORE_NAMESPACE = 'keyword_scores'
+
+
+@dataclass
+class Options:
+    model_path: str
+    metadata_dir: str
+    newspaper_dir: str
+    results_dir: str
+    base_words: str
 
 
 def _single_word_score(model, base_words, word):
@@ -145,7 +155,7 @@ def _update_score_ranges(score_ranges, scores):
     return score_ranges
 
 
-def update_metadata(model, options, iterator):
+def _update_metadata(model, options, iterator):
     base_words = _get_base_words(model, options)
 
     trivial_scores = { base_word: 0 for base_word in base_words }
@@ -185,42 +195,23 @@ def update_metadata(model, options, iterator):
     logging.info(f'Score ranges: {score_ranges}')
 
 
-def parse_args():
-    parser = ArgumentParser()
-    parser.add_argument('--model_path',
-                        help='path to neural net used for computing similarities',
-                        required=True)
-    parser.add_argument('--base_words',
-                        help='comma-separated list of words whose similarities will be computed',
-                        required=True)
-    parser.add_argument('--metadata_dir',
-                        help='path to directory containing metadata files',
-                        required=True)
-    parser.add_argument('--newspaper_dir',
-                        help='path to newspaper files')
-    parser.add_argument('--results_dir',
-                        help='path to non-newspaper files')
-    parser.add_argument('--logfile', default="assign_similarity_metadata.log")
-
-    return parser.parse_args()
-
-
-if __name__ == '__main__':
-    options = parse_args()
-
-    initialize_logger(options.logfile)
+def run(base_words, model_path, metadata_dir, newspaper_dir=None,
+        results_dir=None, logfile='assign_similarity_metadata'):
+    initialize_logger(logfile)
 
     logging.info('Loading model...')
     try:
-        model = gensim.models.Doc2Vec.load(options.model_path)
+        model = gensim.models.Doc2Vec.load(model_path)
     except FileNotFoundError:
         logging.info('No model found')
         import sys; sys.exit()
 
-    if options.newspaper_dir:
-        logging.info('Processing newspapers...')
-        update_metadata(model, options, Path(options.newspaper_dir).rglob('**/*.txt'))
+    options = Options(model_path, metadata_dir, newspaper_dir, results_dir, base_words)
 
-    if options.results_dir:
+    if newspaper_dir:
+        logging.info('Processing newspapers...')
+        _update_metadata(model, options, Path(newspaper_dir).rglob('**/*.txt'))
+
+    if results_dir:
         logging.info('Processing non-newspapers...')
-        update_metadata(model, options, glob.iglob(f'{options.results_dir}/*'))
+        _update_metadata(model, options, glob.iglob(f'{results_dir}/*'))

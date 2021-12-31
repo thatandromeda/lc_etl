@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 import logging
 from pathlib import Path
 
-from utilities import initialize_logger
+from .utilities import initialize_logger
 
 # This cutoff was determined by:
 # - looking at a random sample of 100 files
@@ -51,15 +51,7 @@ def filter_frontmatter(target_dir, cutoff=CUTOFF):
                 continue
 
 
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--target_dir', help='directory containing files to check')
-    parser.add_argument('--cutoff',
-                        help='number of lines to remove from the front matter',
-                        default=CUTOFF)
-    parser.add_argument('--logfile', default="filter_frontmatter.log")
-    options = parser.parse_args()
+def run(target_dir, cutoff=CUTOFF, logfile='filter_frontmatter.log'):
+    initialize_logger(logfile)
 
-    initialize_logger(options.logfile)
-
-    filter_frontmatter(options.target_dir, options.cutoff)
+    filter_frontmatter(target_dir, cutoff)

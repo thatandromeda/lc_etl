@@ -5,27 +5,21 @@ from pathlib import Path
 
 from locr import Fetcher
 
-from lc_items import slurp_items
-from lc_collections import slurp_collections
-from newspapers import slurp_newspapers
-from utilities import slurp, initialize_logger, BASE_DIR
+from .lc_items import slurp_items
+from .lc_collections import slurp_collections
+from .newspapers import slurp_newspapers
+from .utilities import slurp, initialize_logger, BASE_DIR
 
 
-def normalize(dataset_path):
+def _normalize(dataset_path):
     return Path(dataset_path).parts[-1].replace('.py', '')
 
 
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--dataset_path',
-        help='dataset name. This should be a file in dataset_definitions that contains lists of collections, date-filtered collections, queries, and items to pull from LOC. The lists may be empty.')
-    parser.add_argument('--logfile', help='name of log file', default="dataset.log")
-    options = parser.parse_args()
-
-    initialize_logger(options.logfile)
+def run(dataset_path, logfile='dataset.log'):
+    initialize_logger(logfile)
 
     data_def = __import__(
-        f'dataset_definitions.{normalize(options.dataset_path)}',
+        f'dataset_definitions.{_normalize(dataset_path)}',
         fromlist=['collections', 'date_filtered_collections', 'items', 'queries', 'newspapers']
     )
 

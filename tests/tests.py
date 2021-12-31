@@ -11,40 +11,9 @@ import unittest
 import gensim
 import responses
 
-from lc_etl import filter_nonwords, filter_ocr, filter_newspaper_locations
-from lc_etl.assign_similarity_metadata import update_metadata
-from lc_etl.fetch_metadata import fetch
-from lc_etl.zip_csv import zip_csv
-
-@dataclass
-class Arguments:
-    identifiers: str
-
-
-@dataclass
-class ArgumentsMetadata:
-    identifiers: str
-    newspaper_dir: str = ''
-    results_dir: str = ''
-    logfile: str = ''
-    overwrite: bool = True
-
-
-@dataclass
-class ArgumentsZip:
-    coordinates: str
-    identifiers: str
-    output: str
-    overwrite: bool = True
-
-
-@dataclass
-class ArgumentsSimilarity:
-    model_path: str
-    base_words: str
-    metadata_dir: str
-    newspaper_dir: str = ''
-    results_dir: str = ''
+from lc_etl import (assign_similarity_metadata, fetch_metadata,
+                    filter_newspaper_locations, filter_nonwords, filter_ocr,
+                    zip_csv)
 
 
 class TestMetadataFetching(unittest.TestCase):
@@ -80,7 +49,7 @@ class TestMetadataFetching(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(ArgumentsMetadata(identifiers='tests/identifiers_chronam.csv'))
+        fetch_metadata.run(identifiers='tests/identifiers_chronam.csv')
 
         # This is an implicit assertion that the metadata has been written to
         # the correct place.
@@ -143,7 +112,7 @@ class TestMetadataFetching(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(ArgumentsMetadata(identifiers='tests/identifiers_items.csv'))
+        fetch_metadata.run(identifiers='tests/identifiers_items.csv')
 
         # This is an implicit assertion that the metadata has been written to
         # the correct place.
@@ -230,8 +199,8 @@ class TestMetadataFetching(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(Arguments(identifiers='tests/identifiers_items.csv'))
-        fetch(Arguments(identifiers='tests/identifiers_items.csv'))
+        fetch_metadata.run(identifiers='tests/identifiers_items.csv')
+        fetch_metadata.run(identifiers='tests/identifiers_items.csv')
 
         assert responses.assert_call_count(
             f'https://www.loc.gov/item/{identifier}/?fo=json',
@@ -276,12 +245,12 @@ class TestZipCSV(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(ArgumentsMetadata(identifiers='tests/identifiers_chronam.csv'))
-        zip_csv(ArgumentsZip(
+        fetch_metadata.run(identifiers='tests/identifiers_chronam.csv')
+        zip_csv.run(
             identifiers='tests/identifiers_chronam.csv',
             coordinates='tests/fake_coordinates.csv',
             output='tests/zip_csv.csv',
-        ))
+        )
         with open('tests/zip_csv.csv', 'r') as f:
             dict_csv = csv.DictReader(f)
             data = next(dict_csv)
@@ -310,12 +279,12 @@ class TestZipCSV(unittest.TestCase):
                 json=json.load(f),
             )
 
-        fetch(ArgumentsMetadata(identifiers='tests/identifiers_items.csv'))
-        zip_csv(ArgumentsZip(
+        fetch_metadata.run(identifiers='tests/identifiers_items.csv')
+        zip_csv.run(
             identifiers='tests/identifiers_items.csv',
             coordinates='tests/fake_coordinates.csv',
             output='tests/zip_csv.csv',
-        ))
+        )
         with open('tests/zip_csv.csv', 'r') as f:
             zipped_csv = f.readlines()
 
@@ -362,7 +331,7 @@ class TestFilters(unittest.TestCase):
         assert bad_file.is_file()
         assert short_words_file.is_file()
 
-        filter_ocr.filter_for_quality(self.test_directory)
+        filter_ocr.run(self.test_directory)
 
         assert good_file.is_file()
         assert not bad_file.is_file()
@@ -372,7 +341,7 @@ class TestFilters(unittest.TestCase):
     def test_nonwords_filtered(self):
         shutil.copytree('tests/data/nonwords', self.test_directory)
 
-        filter_nonwords.filter(self.test_directory, 'tests/data/gensim_outputs/test_model')
+        filter_nonwords.run(self.test_directory, 'tests/data/gensim_outputs/test_model')
 
         with open(Path(self.test_directory) / 'testfile') as f:
             content = f.read()
@@ -383,7 +352,7 @@ class TestFilters(unittest.TestCase):
     def test_newspaper_locations(self):
         shutil.copytree('tests/data/locations', self.test_directory)
 
-        filter_newspaper_locations.filter(self.test_directory, 'tests/data/metadata')
+        filter_newspaper_locations.run(self.test_directory, 'tests/data/metadata')
 
         with open(Path(self.test_directory) / 'sn78000873/1869/12/30/ed-1/seq-1/ocr.txt') as f:
             content = f.read()
@@ -493,15 +462,12 @@ class TestSimilarityMetadata(unittest.TestCase):
         model_path = 'tests/data/gensim_outputs/test_model'
         newspaper_dir = 'tests/data/locations'
         model = gensim.models.Doc2Vec.load(model_path)
-        arguments = ArgumentsSimilarity(
-            model_path=model_path,
-            newspaper_dir=newspaper_dir,
-            metadata_dir=self.test_metadata,
-            base_words='the,federal'
-        )
-        iterator = Path(newspaper_dir).rglob('**/*.txt')
 
-        update_metadata(model, arguments, iterator)
+
+        assign_similarity_metadata.run(
+            base_words='the,federal', model_path=model_path,
+            newspaper_dir=newspaper_dir, metadata_dir=self.test_metadata
+        )
 
         with open(Path(self.test_metadata) / 'sn78000873/1869/12/30/ed-1/seq-1') as f:
             metadata = json.load(f)

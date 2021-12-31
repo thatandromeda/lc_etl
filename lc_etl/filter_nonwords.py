@@ -30,8 +30,8 @@ import gensim
 import Levenshtein
 import spacy
 
-from lc_etl.utilities import initialize_logger, BASE_DIR
-from lc_etl.filter_newspaper_locations import normalize
+from .utilities import initialize_logger, BASE_DIR
+from .filter_newspaper_locations import normalize
 
 GENSIM_THRESHOLD = 0.6
 LEVENSHTEIN_THRESHOLD = .3
@@ -183,7 +183,7 @@ def _inner_filter(target_dir, db, model, nlp):
             logging.info(f'{files_checked} files edited')
 
 
-def filter(target_dir, model_path):
+def _filter(target_dir, model_path):
     """
     This sets up the infrastructure we'll need for filtering, but delegates the
     actual filtering to _inner_filter. This lets us ensure we've closed the db
@@ -212,16 +212,10 @@ def filter(target_dir, model_path):
         db_conn.close()
 
 
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--target_dir', help='directory containing files to check')
-    parser.add_argument('--model_path', help='path to neural net to use for word similarity')
-    parser.add_argument('--logfile', default="filter_nonwords.log")
-    options = parser.parse_args()
+def run(target_dir, model_path, logfile='filter_nonwords.log'):
+    initialize_logger(logfile)
 
-    initialize_logger(options.logfile)
-
-    filter(options.target_dir, options.model_path)
+    _filter(target_dir, model_path)
 
 # for `canton`, 2-letter changes are common (e.g. 'cautou')
 # >>> model.wv.most_similar('cautou')

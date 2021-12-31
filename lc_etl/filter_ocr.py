@@ -38,10 +38,11 @@ import logging
 
 import spacy
 
-from lc_etl.train_doc2vec import Configuration
-from lc_etl.utilities import initialize_logger
+from .train_doc2vec import Configuration
+from .utilities import initialize_logger
 
-def filter_for_quality(target_dir):
+
+def _filter_for_quality(target_dir):
     """
     Find all .txt files in the target directory; check to see if they have
     adequate OCR quality; and delete any which do not. Use a probabilistic
@@ -94,12 +95,8 @@ def filter_for_quality(target_dir):
     except ZeroDivisionError:
         logging.info('No files found.')
 
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--target_dir', help='directory containing files to check')
-    parser.add_argument('--logfile', default="filter_ocr.log")
-    options = parser.parse_args()
 
-    initialize_logger(options.logfile)
+def run(target_dir, logfile='filter_ocr.log'):
+    initialize_logger(logfile)
 
-    filter_for_quality(options.target_dir)
+    _filter_for_quality(target_dir)

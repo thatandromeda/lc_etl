@@ -1,3 +1,8 @@
+# What this is
+
+This is code for the back end of the 2021 Library of Congress Computing Cultural Heritage in the Cloud project "Situating Ourselves in Cultural Heritage" (Andromeda Yelton, lead investigator).
+
+Code for the front end resides at [lc_site](https://github.com/thatandromeda/lc_site).
 
 # Installation
 - git clone
@@ -6,7 +11,7 @@
 - `python -m spacy download en_core_web_sm`
 
 ## Installation on m1
-The `pipenv install` may fail due to unresolved upstream issues with numpy/scipy, and missing system dependencies. Before attempting it, manually install the following:
+The `pipenv install` may fail due to unresolved upstream issues with numpy/scipy, and missing system dependencies. Before attempting it, create your pipenv, and manually install the following:
 
 ```
 brew install gfortran
@@ -26,33 +31,34 @@ pipenv run pip install --no-binary :all: --no-use-pep517 scipy
 
 You may need to export additional flags, per whatever `brew` outputs on installation.
 
-Then you can `pipenv install`.
+Then you can `pipenv install`. It will not succeed, but you will have all of the dependencies available in your virtualenv.
 
-# Running the data pipeline
-Workflow for getting data from LOC into a model, and transforming that model into a format that can be represented on the web:
+# The data pipeline
 
-- cd `lc_etl` -- **all of the commands below assume you are in this directory**
-- edit `dataset.py` as needed to specify desired items/collections
-- `./run_pipeline.sh path/to/dataset`
-  - optionally, you may add a second command-line argument to specify a logfile (if you do not, it will use a default timestamped value)
+## How it works
+The overall structure of the data pipeline is as follows:
 
-This pipeline script performs the following steps, which you may also run separately:
-- `pipenv run python dataset.py` (gets the fulltext data)
-- Consider copying the newspapers to a backup directory before you run the filters on them.
-- `pipenv run python filter_frontmatter.py --target_dir=(wherever your newspapers are)`
-- `pipenv run python filter_ocr.py --target_dir=(wherever your newspapers are)`
-  - You probably want to run this as `nohup pipenv run python filter_ocr.py --target_dir=(wherever)`. It's long.
-- `pipenv run python train_doc2vec.py` (trains the neural net)
-  - `--newspaper_dir` (optional) specifies directory containing newspapers (default: `newspapers`)
-- `pipenv run python embedding.py --model=/path/to/model` (projects the neural net down to a 2d embedding)
-- `pipenv run python fetch_metadata.py --identifiers=/path/to/embedding/output` (gets the metadata)
-  - `embedding.py` will have output a file with a name like `model_20211027_150539_metadata.csv`; use that name here
-  - A more efficient version would combine this with fetching the dataset, and/or cache previously fetched metadata somewhere, but I've been developing this one step of the pipeline at a time for ease of troubleshooting
-- `pipenv run python zip_csv.py --coordinates=path/to/coordinates/csv --identifiers=path/to/identifiers/csv --output=desired/path/of/output/csv` (combines embedding vectors with metadata, into a csv suitable for use by quadfeather)
-- `quadfeather --files viz/labeled_model.csv --tile_size 10000 --destination viz/lc_etl_tiles`
-  - The arguments can be different if you prefer
+- define a data set
+- download fulltexts (where possible) of every item in this data set
+- download metadata for all fulltexts found
+- run one or more filters to clean up the data
+- train a neural net on the fulltexts
+- optionally enrich the downloaded metadata with information derived from the fulltexts
+- embed the (many-dimensional) neural net in two-dimensional space, so that it can be visualized in a browser
+- generate a file of 2D coordinates and metadata suitable for consumption by the [quadfeather](https://github.com/bmschmidt/quadfeather/) library
 
-Some of these (`train_doc2vec` in particular) may be time-consuming, so you might want to run them with `nohup`, or whatever you like for being able to walk away from a process for a while.
+## Running the data pipeline
+The script `run_pipeline.py` shows the workflow for downloading texts and metadata from the Library of Congress; training a neural net on the texts; and transforming the neural net and metadata into a format that can be represented on the web.
+
+You can, of course, mix and match steps as you prefer. Changes you might want to make include:
+- writing your own dataset definitions (see `lc_etl/dataset_definitions` for examples);
+- altering the neural net hyperparameters (see `config_files` for examples);
+- using filters differently (fewer of them; in a different order; with different threshold values);
+- passing different base words into `assign_similarity_metadata`.
+
+Some of these  may be time-consuming (in particular: `train_doc2vec`, `filter_nonwords`, `assign_similarity_metadata`, and downloading large data sets), so you might want to run them with `nohup`, or whatever you like for being able to walk away from a process for a while.
+
+Note that `filter_nonwords` can only be run if you already have an intermediate neural net you can use to find real words that are similar in meaning to OCR errors. (The `BOOTSTRAP_MODEL_PATH` referenced in `run_pipeline.py` is not part of this repository.) You can train a suitable neural net on your whole data set, but if that data set is large, it may take an enormous amount of memory to handle all the OCR errors your neural net must learn; you will be happier training your intermediate net on a reasonably-sized subset of your data, accepting that it will not see low-frequency OCR errors, but trusting it will learn the common ones.
 
 # Exploring the data
 To load a model, in order to explore it:
@@ -60,7 +66,7 @@ To load a model, in order to explore it:
 - `>>> import gensim`
 - `>>> model = gensim.models.Doc2Vec.load("path/to/model")`
 
-You can also explore visually using [deepscatter](https://github.com/CreatingData/deepscatter/). Install this and edit its index.html file to point to the directory containing the files generated by quadfeather, above.
+You can also explore visually using [deepscatter](https://github.com/CreatingData/deepscatter/). Install this and edit its index.html file to point to the directory containing the files generated by quadfeather, in the `run_pipeline` script above.
 
 # Tests
 - `pipenv run python -m unittest tests/tests.py`

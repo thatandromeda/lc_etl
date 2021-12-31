@@ -4,7 +4,7 @@ import subprocess
 from locr import Fetcher
 from locr.exceptions import AmbiguousText, ObjectNotOnline
 
-from utilities import slurp, http_adapter, jsonify, filenamify, record_subjects
+from .utilities import slurp, http_adapter, jsonify, filenamify, record_subjects
 
 def slurp_items(items):
     """
