@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import shutil
 from time import sleep
+from urllib.parse import urljoin
 
 from .utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
 
@@ -184,7 +185,7 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
         # rather than providing a usable image directly.
         # We use Path as a hack because it will do the right thing whether or
         # not there's a trailing slash.
-        self.metadata['image_url'] = str(Path(url) / 'thumbnail.jpg')
+        self.metadata['image_url'] = urljoin(url, 'thumbnail.jpg')
 
 
     def set_identifier(self):
