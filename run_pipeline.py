@@ -2,6 +2,8 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from quadfeather import tiler
+
 from lc_etl import (dataset, fetch_metadata, filter_ocr, filter_nonwords,
                     filter_newspaper_locations, train_doc2vec,
                     assign_similarity_metadata, embedding, zip_csv)
@@ -117,4 +119,6 @@ destination = Path(BASE_DIR) / 'viz' / f'{model_name}_tiles'
 # We need to coerce the type of date to string; pyarrow otherwise infers type
 # date32, and errors when it encounters dates that are only yyyy (instead of
 # yyyy-mm-dd). The downstream consumer should be fine either way.
-subprocess.run(f'pipenv run quadfeather --files={zipped_csv} -destination={destination} --dtypes date=string', shell=True)
+tiler.main(["--files", zipped_csv, '--destination', destination, '--dtypes', 'date=string'])
+# Equivalent to this command-line version:
+# pipenv run quadfeather --files={zipped_csv} -destination={destination} --dtypes date=string'

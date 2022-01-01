@@ -1059,7 +1059,7 @@
         },
         "quadfeather": {
             "git": "https://github.com/bmschmidt/quadfeather",
-            "ref": "b38190f703af7e47e877c861218ed83e44161946"
+            "ref": "5f1a0ababbbf10552ec8281e6ff8716b0c16a55e"
         },
         "rapidfuzz": {
             "hashes": [
