@@ -12,8 +12,8 @@ import gensim
 import responses
 
 from lc_etl import (assign_similarity_metadata, fetch_metadata,
-                    filter_newspaper_locations, filter_nonwords, filter_ocr,
-                    zip_csv)
+                    filter_collections, filter_newspaper_locations,
+                    filter_nonwords, filter_ocr, zip_csv)
 
 
 class TestMetadataFetching(unittest.TestCase):
@@ -358,6 +358,39 @@ class TestFilters(unittest.TestCase):
             content = f.read()
 
         assert content.strip() == "once upon a time there was a congressman who had a peach from ireland"
+
+
+    def test_collections_newspapers(self):
+        shutil.copytree('tests/data/locations', self.test_directory)
+
+        total_files = 0
+        for x in Path(self.test_directory).rglob('*'):
+            if x.is_file():
+                total_files += 1
+        assert total_files == 1
+
+        filter_collections.run(
+            ['Chronicling America'], 'tests/data/metadata', self.test_directory
+        )
+
+        # We can't just use os.listdir, because the filter does NOT clean up
+        # empty directories left over once we've removed files.
+        total_files = 0
+        for x in Path(self.test_directory).rglob('*'):
+            if x.is_file():
+                total_files += 1
+        assert total_files == 0
+
+
+    def test_collections_results(self):
+        shutil.copytree('tests/data/results', self.test_directory)
+        assert len(os.listdir(self.test_directory)) == 2
+
+        filter_collections.run(
+            ['walt whitman papers in the charles e. feinberg collection'], 'tests/data/metadata', self.test_directory
+        )
+
+        assert len(os.listdir(self.test_directory)) == 1
 
 
 class TestBulkScripts(unittest.TestCase):
