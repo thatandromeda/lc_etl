@@ -1,29 +1,34 @@
-# New filter concept: Make sure everything in the document is actually a word!
+# This is an unfinished attempt to parallelize filter_nonwords.
 #
-# For each word in a document:
-#   If it's a legitimate word, keep it
-#   If it's not:
-#     Find the words which are most similar in meaning, according to a
-#     previously-trained neural net
-#     Discard any below a minimum similarity threshold
-#     See if any remaining have a small Levenshtein distance (i.e. could have
-#     been produced by a handful of misrecognized characters in the OCR process)
-#     If any options remain, substitute the most similar for the word in the
-#     document
-#     Otherwise, drop the word
+# Why was it attempted?
+# 1. filter_nonwords is excruciatingly slow;
+# 2. each document is independent of the others, so in theory they can be
+#    processed in parallel.
 #
-# This has the following salutary properties:
-# - eliminates gibberish
-# - probably replaces words with the original in-document word
-# - dramatically reduces the corpus vocabulary size, leading to much faster
-#   neural net training (4x speedup during trials)
+# Why is it unfinished?
 #
-# Unfortunately, this takes almost literally forever.  Therefore this has a
-# multiprocessing implementation, so that it can be parallelized.
+# Python multiprocessing is hard!
 #
-# TODO: figure out how logs work with multiprocessing.
-# time: cp -r old_results multithreaded_test; run this
-# cp -r old_results multithreaded_test; run original
+# Data can only be shared between processes if it's picklable. This means that
+# each process needs its own copy of the neural net ( = lots of memory, plus
+# time to load) and its own database connection. Furthermore, each process needs
+# its own database connection management. If you commit transactions on every
+# word, you will slow down terribly; if you wait to commit transactions too
+# long, you will eventually end up with a locked database. Finally, you need a
+# way to apportion files among processes. The obvious choice of looping through
+# globbed files in the main program and apportioning them one-by-one to
+# processes -- while simplifying database management by letting you do all your
+# commits in the main process -- means having to load the neural net anew for
+# each file (as you spawn processes for them one-by-one), which will obliterate
+# performance benefits from multiprocessing due to the slowness of loading the
+# neural net. itertools.tee() allows you to split an iterator -- thus, for
+# instance, globbing all the files, splitting them into os.cpu_count()
+# iterators, and handing each iterator to a process -- but it also uses an
+# inordinate amount of memory for large corpora.
+#
+# I decided I was better off letting the computer process things slowly in the
+# background and using my time on solving different problems. But I leave this
+# code here in case _you_ know how to make it work. Pull requests welcome!
 
 from argparse import ArgumentParser
 import itertools

@@ -18,7 +18,15 @@
 # - dramatically reduces the corpus vocabulary size, leading to much faster
 #   neural net training (4x speedup during trials)
 #
-# It will probably take almost literally forever to run.
+# It will take almost literally forever to run (multiple days to process a
+# corpus of about 600K newspapers on an m1). It can in theory be parallelized
+# (see filter_nonwords_parallel for an unfinished attempt at this). With a
+# modest rewrite, it could also be combined with filter_ocr, making it
+# unnecessary to run that script; since it examines every word anyway and
+# compares them to a dictionary, you could readily calculate which documents
+# fall below the acceptability threshold. However, I suspect that this would
+# actually be a net slowdown, since the filter_ocr implementation is much faster
+# than looking at every word.
 
 from argparse import ArgumentParser
 import logging
