@@ -92,7 +92,7 @@ class LocCorpus:
 
     def __iter__(self):
         for document, tag in LocDiskIterator(self.config):
-            yield TaggedDocument(preprocess(config, document), [tag])
+            yield TaggedDocument(preprocess(self.config, document), [tag])
 
 
 class Configuration(object):
