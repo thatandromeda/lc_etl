@@ -178,6 +178,7 @@ class ChronAmMetadataFetcher(BaseMetadataFetcher):
 
     def add_newspaper_info(self):
         self.metadata['date'] = self.date_from_chronam_identifier()    # YYYY-MM-DD
+        self.metadata['year'] = self.metadata['date'][:4]
         url = self.url_from_chronam_identifier()
         self.metadata['url'] = url    # string
         # This is a guess, based on contents of HTML pages,  since it isn't in
@@ -225,6 +226,7 @@ class ItemMetadataFetcher(BaseMetadataFetcher):
 
     def add_results_info(self):
         self.metadata['date'] = self.json.get('date')            # YYYY or YYYY-MM-DD
+        self.metadata['year'] = self.metadata['date'][:4]
         self.metadata['url'] = self.json.get('url')              # string
         self.metadata['image_url'] = self.get_image()            # string
 
