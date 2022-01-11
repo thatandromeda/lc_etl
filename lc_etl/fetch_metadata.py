@@ -19,7 +19,7 @@ from .utilities import http_adapter, make_timestamp, initialize_logger, BASE_DIR
 # are being written correctly).
 METADATA_ORDER = [
     'collections', 'title', 'subjects', 'subject_headings', 'locations', 'date',
-    'url', 'image_url', 'description', 'states'
+    'url', 'image_url', 'description', 'states', 'year'
 ]
 
 OUTPUT_DIR = f'{BASE_DIR}/metadata'
