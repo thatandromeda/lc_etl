@@ -2,8 +2,6 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from quadfeather import tiler
-
 from lc_etl import (dataset, fetch_metadata, filter_ocr, filter_nonwords,
                     filter_newspaper_locations, train_doc2vec,
                     assign_similarity_metadata, embedding, zip_csv)
@@ -19,7 +17,7 @@ RESULTS_DIR=f"{BASE_DIR}/results_everything"
 METADATA_DIR=f"{BASE_DIR}/metadata"
 
 BOOTSTRAP_MODEL_PATH=f"{BASE_DIR}/gensim_outputs/model_test_🎉_20211206_132918"
-CONFIG_FILE="config_files.everything"
+CONFIG_FILE="lc_etl.config_files.everything"
 
 # These were derived by looking at the indexes of Foner's and Du Bois's books
 # on Reconstruction to find single-word terms which were unusually frequent.
@@ -39,10 +37,10 @@ dataset.fetch(dataset_path=DATADEF, logfile=LOGFILE)
 shutil.copytree(Path(BASE_DIR) / DEFAULT_RESULTS_DIR, RESULTS_DIR)
 shutil.copytree(Path(BASE_DIR) / DEFAULT_NEWSPAPER_DIR, RESULTS_DIR)
 
-fetch_metadata.run(results_dir=RESULTS_DIR, newspaper_dir=FILTER_DIR, logfile=$LOGFILE, overwrite=True)
+fetch_metadata.run(results_dir=RESULTS_DIR, newspaper_dir=FILTER_DIR, logfile=LOGFILE, overwrite=False)
 
 
-# ------------------------------ Filter nonwords ----------------------------- #
+# ------------------------------ Filter bad OCR ------------------------------ #
 print("Filtering newspaper OCR...")
 filter_ocr.run(target_dir=FILTER_DIR, logfile=LOGFILE)
 
@@ -83,7 +81,7 @@ subprocess.run(f'find {FILTER_DIR} -mindepth 1 -type d -empty -delete', shell=Tr
 subprocess.run(f'find {RESULTS_DIR} -type f -empty -delete', shell=True)
 
 
-# ----------------------------- Train neural net ----------------------------- #
+----------------------------- Train neural net ----------------------------- #
 print("Training neural net...")
 train_doc2vec.run(config_file=CONFIG_FILE, logfile=LOGFILE)
 model_name = subprocess.run(
@@ -99,7 +97,7 @@ print("Assigning similarity metadata...")
 model_path = str(Path(BASE_DIR) / 'gensim_outputs' / model_name)
 assign_similarity_metadata.run(
     model_path=str(model_path), metadata_dir=METADATA_DIR,
-    newspaper_dir=$FILTER_DIR, results_dir=RESULTS_DIR,
+    newspaper_dir=FILTER_DIR, results_dir=RESULTS_DIR,
     logfile=LOGFILE, base_words=BASE_WORDS)
 
 
@@ -113,12 +111,14 @@ identifiers = Path(BASE_DIR) / 'viz' / f'{model_name}_metadata.csv'
 zipped_csv = Path(BASE_DIR) / 'viz' / f'labeled_{model_name}.csv'
 zip_csv.run(coordinates=coordinates, identifiers=identifiers, output=zipped_csv, logfile=LOGFILE)
 
+print("Shuffling metadata...")
+subprocess.run(f'./lc_etl/bulk_scripts/randomize_csv.sh -c {zipped_csv}', shell=True)
+
 print("Preparing tiles...")
 destination = Path(BASE_DIR) / 'viz' / f'{model_name}_tiles'
-
 # We need to coerce the type of date to string; pyarrow otherwise infers type
 # date32, and errors when it encounters dates that are only yyyy (instead of
 # yyyy-mm-dd). The downstream consumer should be fine either way.
-tiler.main(["--files", zipped_csv, '--destination', destination, '--dtypes', 'date=string'])
-# Equivalent to this command-line version:
-# pipenv run quadfeather --files={zipped_csv} -destination={destination} --dtypes date=string'
+# The below invocation is temporarily broken
+#tiler.main(["--files", zipped_csv, '--destination', destination, '--dtypes', 'date=string', '--tile_size', '25000'])
+subprocess.run(f"pipenv run quadfeather --files={zipped_csv} --destination={destination} --dtypes 'date=string' --tile_size=25000", shell=True)

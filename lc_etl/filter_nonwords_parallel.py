@@ -26,6 +26,10 @@
 # iterators, and handing each iterator to a process -- but it also uses an
 # inordinate amount of memory for large corpora.
 #
+# Some of these problems would not apply to multi_threaded_ solutions, but due
+# to the Global Interpreter Lock I'm not hopeful that I could gain much
+# performance improvement that way.
+#
 # I decided I was better off letting the computer process things slowly in the
 # background and using my time on solving different problems. But I leave this
 # code here in case _you_ know how to make it work. Pull requests welcome!

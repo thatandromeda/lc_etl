@@ -163,8 +163,12 @@ def _inner_filter(target_dir, db, model, nlp):
         if not txt_file.is_file():
             continue
 
-        with open(txt_file, 'r') as f:
-            text = f.read()
+        try:
+            with open(txt_file, 'r') as f:
+                text = f.read()
+        except UnicodeDecodeError:
+            logging.exception(f'Could not read {txt_file}')
+            continue
 
         new_text = []
 
