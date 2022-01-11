@@ -21,8 +21,10 @@ def file_prefix(model):
     return Path(model).name
 
 
-def make_embedding(model):
+def make_embedding(model, n_neighbors, min_dist):
     logging.info('Generating embedding...')
+    # n_components is how many dimensions the output should have.
+    # 'cosine' is the distance metric used by Doc2Vec.
     umap_args = {'n_components': 2, 'metric': 'cosine'}
     # fit() returns an embedding (of type array) and a dict of auxiliary data;
     # fit_transform() returns just the embedding, normalized. I think.
@@ -84,10 +86,15 @@ def write_metadata(model, model_path):
             csv_output.writerow([key])
 
 
-def run(model_path, logfile='embedding.log'):
+# The actual structure of the data set has a lot of nearby neighbors (per
+# experiments with `estimate_umap_params`) -- potentially hundreds. That seems
+# likely to produce something mushy-looking, though. I'll default to a high-ish
+# n_neighbors value, and push the min_dist down to capture local similarities
+# better. See https://umap-learn.readthedocs.io/en/latest/parameters.html .
+def run(model_path, n_neighbors=100, min_dist= 0.001, logfile='embedding.log'):
     initialize_logger(logfile)
 
     model = gensim.models.Doc2Vec.load(model_path)
-    embedding = make_embedding(model)
+    embedding = make_embedding(model, n_neighbors, min_dist)
     write_to_tsv(model_path, embedding)
     write_metadata(model, model_path)
