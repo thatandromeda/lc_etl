@@ -24,11 +24,9 @@ CONFIG_FILE="lc_etl.config_files.everything"
 # This explicitly excludes proper nouns that occur frequently (notably, states,
 # many of which were very frequent index terms, but all of which are accounted
 # for via conventional metadata).
-# I expect some of these will be duplicative (e.g. "suffrage" and "equality"
-# are likely similar), but I want to cast a wide net here in hopes of ending up
-# with some useful options for visualization.
-BASE_WORDS="abolition,rights,election,education,suffrage,school,convention,property,worker,labor,freedmen,agriculture,business,representation,constitution,economy,equality,yeoman,slavery"
-
+# I used a longer list for a first pass, and then deleted ones that didn't seem
+# useful in surfacing clusters (i.e. not much color variation).
+BASE_WORDS="abolition,agriculture,business,constitution,convention,economy,education,election,equality,freedmen,labor,property,suffrage,worker"
 
 # ------------- First: download all data & metadata we will need ------------- #
 print("Downloading data set...")

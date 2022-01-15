@@ -196,7 +196,7 @@ def _update_metadata(model, options, iterator):
 
 
 def run(base_words, model_path, metadata_dir, newspaper_dir=None,
-        results_dir=None, logfile='assign_similarity_metadata'):
+        results_dir=None, logfile='assign_similarity_metadata.log'):
     initialize_logger(logfile)
 
     logging.info('Loading model...')
